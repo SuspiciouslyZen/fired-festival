@@ -8,17 +8,24 @@ logger = logging.getLogger(__name__)
 
 def start_ec2_instance(instance_id: str) -> dict:
     """
-    Start a stopped EC2 instance and return its new state.
-    Use this when the instance is already stopped — not stop+start.
+    Start a stopped EC2 instance and wait until it reaches running state.
+    Blocks up to ~2 minutes (12 attempts × 10s delay) before returning.
     """
     try:
         import boto3
 
         client = boto3.client("ec2", region_name="us-east-2")
-        resp = client.start_instances(InstanceIds=[instance_id])
-        new_state = resp["StartingInstances"][0]["CurrentState"]["Name"]
-        logger.info(f"EC2 instance {instance_id} start issued, state={new_state}")
-        return {"success": True, "new_status": new_state, "instance_id": instance_id}
+        client.start_instances(InstanceIds=[instance_id])
+        logger.info(f"EC2 instance {instance_id} start issued, waiting for running state")
+
+        waiter = client.get_waiter("instance_running")
+        waiter.wait(
+            InstanceIds=[instance_id],
+            WaiterConfig={"Delay": 10, "MaxAttempts": 12},
+        )
+
+        logger.info(f"EC2 instance {instance_id} is running")
+        return {"success": True, "new_status": "running", "instance_id": instance_id}
 
     except Exception as e:
         logger.error(f"EC2 start failed for {instance_id}: {e}")
