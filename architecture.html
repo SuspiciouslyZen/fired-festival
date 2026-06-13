@@ -233,11 +233,9 @@ p strong{color:#1a1a1a}
 
 <h2>3. Key Decisions</h2>
 
-<p><strong>Why the agent can't bypass guardrails:</strong> The tool registry checks the allow-list <em>before</em> executing any tool. The agent receives a "blocked" result and must choose a different action. This is the core safety guarantee — an unconstrained AI responding to a production incident can take the system down.</p>
+<p><strong>Adaptive feedback loop:</strong> When the guardrail blocks an action, the agent receives a structured "blocked" result as its next message — not an error, not a crash. The agent must reason about the rejection and choose a different approach. This is how the agent's behavior <em>changes meaningfully</em> based on harness feedback: the harness constrains, the agent adapts.</p>
 
-<p><strong>Why SQLite for checkpoints:</strong> Single-file, zero infrastructure, persists on Railway's volume. Replay is a query, not a re-run. At this scale, it's the simplest correct choice.</p>
-
-<p><strong>Why YAML for guardrails config:</strong> Human-readable, version-controllable, diffable. An ops team can review and approve guardrail changes in a PR. The agent never reads this file — only the harness does.</p>
+<p><strong>Checkpoint replay:</strong> Every checkpoint persists its full state snapshot to SQLite. To replay a run from CP3, the harness loads CP2's saved state, skips stages 1–2 entirely, and resumes execution. This means you can re-run the remediation phase without re-diagnosing — critical for debugging and iteration.</p>
 
 <div class="callout amber">
 <div class="ch">The core safety contract</div>
