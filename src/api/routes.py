@@ -117,12 +117,26 @@ async def health():
 
 @app.get("/debug/discovery")
 async def debug_discovery():
-    from src.aws.discovery import get_service_instance_map, list_monitored_services
+    import boto3, traceback
+    from src.aws.discovery import get_service_instance_map
     cached = get_service_instance_map()
-    if not cached:
-        fresh = await asyncio.to_thread(list_monitored_services)
-        return {"cached": cached, "fresh_attempt": fresh, "allowed_services": _guardrails.config.allowed_services if _guardrails else []}
-    return {"cached": cached, "allowed_services": _guardrails.config.allowed_services if _guardrails else []}
+    error = None
+    fresh = []
+    try:
+        client = boto3.client("resourcegroupstaggingapi", region_name="us-east-2")
+        paginator = client.get_paginator("get_resources")
+        for page in paginator.paginate(TagFilters=[{"Key": "Monitor", "Values": ["true"]}], ResourceTypeFilters=["ec2:instance"]):
+            for r in page["ResourceTagMappingList"]:
+                fresh.append(r["ResourceARN"])
+    except Exception as e:
+        error = traceback.format_exc()
+    identity = None
+    try:
+        sts = boto3.client("sts", region_name="us-east-2")
+        identity = sts.get_caller_identity()
+    except Exception as e:
+        identity = str(e)
+    return {"cached": cached, "fresh_arns": fresh, "error": error, "identity": identity, "allowed_services": _guardrails.config.allowed_services if _guardrails else []}
 
 
 @app.post("/webhook/ec2")
