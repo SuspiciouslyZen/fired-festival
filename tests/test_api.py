@@ -1,6 +1,7 @@
+import json
 import pytest
 from httpx import AsyncClient, ASGITransport
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, patch, MagicMock
 
 from src.api.routes import app
 from src.db.store import CheckpointStore
@@ -141,3 +142,92 @@ async def test_escalation_wrong_status(client):
         "reason": "",
     })
     assert resp.status_code == 400
+
+
+# 8. POST /webhook/ec2 — SNS SubscriptionConfirmation triggers GET on SubscribeURL
+async def test_webhook_sns_subscription_confirmation(client):
+    subscribe_url = "https://sns.amazonaws.com/confirm?token=abc123"
+    payload = json.dumps({
+        "Type": "SubscriptionConfirmation",
+        "SubscribeURL": subscribe_url,
+        "TopicArn": "arn:aws:sns:us-east-2:123456789012:ec2-alerts",
+    })
+
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+
+    with patch("httpx.AsyncClient") as mock_client_cls:
+        mock_http = AsyncMock()
+        mock_http.__aenter__ = AsyncMock(return_value=mock_http)
+        mock_http.__aexit__ = AsyncMock(return_value=False)
+        mock_http.get = AsyncMock(return_value=mock_response)
+        mock_client_cls.return_value = mock_http
+
+        resp = await client.post(
+            "/webhook/ec2",
+            content=payload,
+            headers={"Content-Type": "text/plain"},
+        )
+
+    assert resp.status_code == 200
+    assert resp.json() == {"status": "confirmed"}
+    mock_http.get.assert_awaited_once_with(subscribe_url)
+
+
+# 9. POST /webhook/ec2 — SNS Notification unwraps inner event and runs harness
+async def test_webhook_sns_notification(client):
+    from tests.test_loop import MockAgent
+
+    ec2_event = {
+        "source": "aws.ec2",
+        "detail-type": "EC2 Instance State-change Notification",
+        "detail": {"instance-id": "i-0abc123", "state": "stopped"},
+        "region": "us-east-2",
+    }
+    sns_payload = json.dumps({
+        "Type": "Notification",
+        "Message": json.dumps(ec2_event),
+        "TopicArn": "arn:aws:sns:us-east-2:123456789012:ec2-alerts",
+    })
+
+    mock_agent = MockAgent(HAPPY_RESPONSES)
+    with patch("src.api.routes._get_agent", return_value=mock_agent):
+        resp = await client.post(
+            "/webhook/ec2",
+            content=sns_payload,
+            headers={"Content-Type": "text/plain"},
+        )
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "run_id" in data
+
+
+# 10. POST /webhook/ec2 — direct EventBridge JSON (no SNS envelope)
+async def test_webhook_direct_eventbridge(client):
+    from tests.test_loop import MockAgent
+
+    ec2_event = {
+        "source": "aws.ec2",
+        "detail-type": "EC2 Instance State-change Notification",
+        "detail": {"instance-id": "i-0abc123", "state": "stopped"},
+        "region": "us-east-2",
+    }
+
+    mock_agent = MockAgent(HAPPY_RESPONSES)
+    with patch("src.api.routes._get_agent", return_value=mock_agent):
+        resp = await client.post("/webhook/ec2", json=ec2_event)
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "run_id" in data
+
+
+# 11. POST /webhook/ec2 — malformed body → 422
+async def test_webhook_malformed_body(client):
+    resp = await client.post(
+        "/webhook/ec2",
+        content=b"not json at all",
+        headers={"Content-Type": "text/plain"},
+    )
+    assert resp.status_code == 422

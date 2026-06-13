@@ -16,7 +16,7 @@ import logging
 import os
 import httpx
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -150,7 +150,7 @@ async def debug_discovery():
 
 
 @app.post("/webhook/ec2")
-async def webhook_ec2(event: dict):
+async def webhook_ec2(request: Request):
     """
     Receive SNS notifications from EventBridge/CloudWatch and run the harness.
 
@@ -159,20 +159,32 @@ async def webhook_ec2(event: dict):
     - SNS Notification: unwraps the Message field to get the EventBridge event
     - Direct EventBridge JSON: used for manual testing
     """
+    import json as _json
+    body = await request.body()
+    try:
+        event = _json.loads(body)
+    except Exception:
+        raise HTTPException(status_code=422, detail="Could not parse request body as JSON")
+
     msg_type = event.get("Type")
 
     # SNS subscription handshake — fetch the SubscribeURL to confirm
     if msg_type == "SubscriptionConfirmation":
         subscribe_url = event.get("SubscribeURL")
-        if subscribe_url:
-            async with httpx.AsyncClient() as client:
-                await client.get(subscribe_url)
-            logger.info("SNS subscription confirmed")
+        if not subscribe_url:
+            logger.warning("SNS SubscriptionConfirmation missing SubscribeURL")
+            return {"status": "confirmed"}
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                r = await client.get(subscribe_url)
+                logger.info(f"SNS subscription confirmed (HTTP {r.status_code})")
+        except Exception as e:
+            logger.error(f"SNS SubscribeURL fetch failed: {e}")
+            raise HTTPException(status_code=502, detail=f"Could not fetch SubscribeURL: {e}")
         return {"status": "confirmed"}
 
     # SNS notification — unwrap to get the inner EventBridge event
     if msg_type == "Notification":
-        import json as _json
         try:
             ec2_event = _json.loads(event.get("Message", "{}"))
         except Exception:
