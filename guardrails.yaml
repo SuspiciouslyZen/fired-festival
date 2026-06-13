@@ -1,0 +1,24 @@
+allowed_actions:
+  - check_status
+  - restart_service
+  - read_logs
+  - kill_query
+  - flush_dns
+
+environment_scope: staging
+
+production_requires_approval: true
+
+max_turns: 15
+token_budget: 50000
+timeout_seconds: 120
+
+requires_approval:
+  - kill_query
+
+severity_overrides:
+  DESTRUCTIVE_ACTION_REQUESTED: CRITICAL
+  UNKNOWN_SERVICE: WARNING
+  REMEDIATION_FAILED: CRITICAL
+  TURN_LIMIT_REACHED: WARNING
+  CONFIDENCE_LOW: INFO

@@ -1,0 +1,10 @@
+{
+  "service": "cdn",
+  "severity": "medium",
+  "description": "DNS resolution failures for edge-us-west-2.cdn.example.com. Cache hit rate dropped to 34%. 28.7% of requests falling back to origin server. DNS resolution time: 8500ms (threshold: 100ms).",
+  "source": "cloudflare",
+  "metadata": {
+    "edge_location": "us-west-2",
+    "affected_domains": ["cdn.example.com", "static.example.com"]
+  }
+}

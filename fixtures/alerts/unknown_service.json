@@ -1,0 +1,9 @@
+{
+  "service": "billing-v3",
+  "severity": "critical",
+  "description": "Service billing-v3 reporting 100% error rate. All health checks failing.",
+  "source": "pagerduty",
+  "metadata": {
+    "incident_id": "PD-2026-4523"
+  }
+}

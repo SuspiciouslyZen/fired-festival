@@ -1,0 +1,11 @@
+{
+  "service": "postgres",
+  "severity": "high",
+  "description": "Long-running query detected on primary database. Query has been executing for 3847 seconds. Connection pool at 148/150 (98.7% utilization). Lock contention reported on 'events' table with 12 queries waiting.",
+  "source": "datadog",
+  "metadata": {
+    "query_id": "pg-query-8847",
+    "database": "production",
+    "table": "events"
+  }
+}
