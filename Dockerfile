@@ -8,6 +8,8 @@ RUN pip install --no-cache-dir .
 COPY . .
 RUN mkdir -p data && chmod 777 data
 
+ENV ENV=production
+
 EXPOSE 8000
 
 CMD ["python", "main.py"]
