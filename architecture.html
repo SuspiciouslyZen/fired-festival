@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Architecture — Ops Runbook Harness</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=DM+Sans:wght@400;500;600&display=swap');
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'DM Sans',sans-serif;font-size:13px;line-height:1.55;color:#1a1a1a;max-width:860px;margin:0 auto;padding:40px 48px}
+
+.hdr{border-bottom:2px solid #1a1a1a;padding-bottom:16px;margin-bottom:24px}
+.hdr .tag{font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:#777;font-weight:600;margin-bottom:4px}
+.hdr h1{font-family:'Source Serif 4',Georgia,serif;font-size:26px;font-weight:700;line-height:1.2;margin-bottom:4px}
+.hdr .sub{font-size:14px;color:#4a4a4a}
+.meta{display:flex;gap:28px;margin-top:10px;font-size:12px;color:#777}
+.meta b{color:#4a4a4a;font-weight:600}
+
+h2{font-family:'Source Serif 4',Georgia,serif;font-size:18px;font-weight:600;margin:22px 0 8px;padding-bottom:4px;border-bottom:1px solid #e2e0da}
+h3{font-size:14px;font-weight:600;margin:14px 0 6px}
+p{margin-bottom:8px;color:#4a4a4a;font-size:13px}
+p strong{color:#1a1a1a}
+
+.fig{background:#f7f6f3;border:1px solid #e2e0da;border-radius:10px;padding:16px 12px;margin:12px 0}
+.fig .cap{font-size:11px;color:#777;text-align:center;margin-top:8px;font-style:italic}
+
+.tbl{width:100%;border-collapse:collapse;font-size:12px;margin:10px 0}
+.tbl th{text-align:left;font-weight:600;padding:6px 10px;border-bottom:2px solid #1a1a1a;font-size:11px;letter-spacing:0.03em;text-transform:uppercase}
+.tbl td{padding:6px 10px;border-bottom:1px solid #e2e0da;color:#4a4a4a;vertical-align:top}
+.tbl tr:last-child td{border-bottom:none}
+.tbl code{font-size:11px;background:#f7f6f3;padding:1px 4px;border-radius:3px}
+
+.principles{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0 16px}
+.principle{background:#f7f6f3;border-left:3px solid #2c5282;padding:8px 12px;border-radius:0 8px 8px 0}
+.principle .pl{font-size:12px;font-weight:600;color:#2c5282;margin-bottom:2px}
+.principle p{font-size:12px;margin:0;line-height:1.4}
+
+.callout{border-radius:8px;padding:12px 16px;margin:12px 0}
+.callout.amber{background:#fef8ec;border:1px solid #f0ddb0}
+.callout .ch{font-weight:600;font-size:13px;margin-bottom:4px}
+.callout.amber .ch{color:#854F0B}
+.callout p:last-child{margin-bottom:0}
+
+@media print{
+  body{padding:20px}
+  @page{margin:0.5in;size:letter}
+}
+</style>
+</head>
+<body>
+
+<header class="hdr">
+  <div class="tag">Harness Architecture Document</div>
+  <h1>Ops Runbook Harness</h1>
+  <div class="sub">An AI agent harness that diagnoses and remediates infrastructure incidents using pre-approved runbooks — with safety constraints the agent cannot override.</div>
+  <div class="meta">
+    <span><b>Author:</b> Andrew Leat</span>
+    <span><b>Date:</b> June 12, 2026</span>
+    <span><b>Stack:</b> Python · FastAPI · Claude / OpenAI · SQLite · Pydantic</span>
+  </div>
+</header>
+
+
+<h2>1. Overview</h2>
+
+<p>When production systems break, on-call engineers get paged for problems with known fixes. The hard part isn't running the fix — it's knowing whether automation can <strong>safely act</strong>, verifying the fix <strong>actually worked</strong>, and catching <strong>downstream damage</strong> before it cascades.</p>
+
+<p>This harness governs an AI agent that follows pre-approved runbooks to diagnose and remediate incidents. The agent proposes actions; the <strong>harness decides what's allowed</strong>. Four architecturally separate pillars — each a distinct module — enforce safety, evaluate quality, structure data, and signal failures.</p>
+
+<div class="fig">
+<svg width="100%" viewBox="0 0 920 290" xmlns="http://www.w3.org/2000/svg">
+<defs>
+  <marker id="arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+    <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </marker>
+</defs>
+
+<!-- Legend -->
+<rect x="30" y="6" width="10" height="10" rx="2" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/><text x="44" y="15" font-family="DM Sans,sans-serif" font-size="11" fill="#777">Agent Loop</text>
+<rect x="130" y="6" width="10" height="10" rx="2" fill="#FCEBEB" stroke="#A32D2D" stroke-width="0.5"/><text x="144" y="15" font-family="DM Sans,sans-serif" font-size="11" fill="#777">Guardrails</text>
+<rect x="230" y="6" width="10" height="10" rx="2" fill="#EAF3DE" stroke="#3B6D11" stroke-width="0.5"/><text x="244" y="15" font-family="DM Sans,sans-serif" font-size="11" fill="#777">Checkpoints</text>
+<rect x="340" y="6" width="10" height="10" rx="2" fill="#FAEEDA" stroke="#854F0B" stroke-width="0.5"/><text x="354" y="15" font-family="DM Sans,sans-serif" font-size="11" fill="#777">Material Handling</text>
+<rect x="480" y="6" width="10" height="10" rx="2" fill="#EEEDFE" stroke="#534AB7" stroke-width="0.5"/><text x="494" y="15" font-family="DM Sans,sans-serif" font-size="11" fill="#777">Alarms</text>
+
+<!-- Input -->
+<rect x="30" y="40" width="120" height="40" rx="7" fill="#FAEEDA" stroke="#854F0B" stroke-width="0.5"/>
+<text x="90" y="56" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="12" font-weight="500" fill="#412402">Alert JSON In</text>
+<text x="90" y="72" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="10" fill="#633806">schema validated</text>
+
+<line x1="150" y1="60" x2="178" y2="60" stroke="#777" stroke-width="0.5" marker-end="url(#arr)"/>
+
+<!-- Guardrails wrapper -->
+<rect x="180" y="28" width="530" height="200" rx="10" fill="#FCEBEB" stroke="#A32D2D" stroke-width="0.8" stroke-dasharray="4 3"/>
+<text x="445" y="46" text-anchor="middle" font-family="DM Sans,sans-serif" font-size="11" font-weight="600" fill="#791F1F">GUARDRAILS BOUNDARY — from guardrails.yaml (declared, not implicit)</text>
+
+<!-- Agent Loop -->
+<rect x="196" y="58" width="498" height="158" rx="8" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/>
+<text x="445" y="76" text-anchor="middle" font-family="DM Sans,sans-serif" font-size="11" font-weight="600" fill="#0C447C">AGENT LOOP (bounded: max turns · token budget · timeout)</text>
+
+<!-- Checkpoints -->
+<rect x="210" y="90" width="100" height="48" rx="6" fill="#EAF3DE" stroke="#3B6D11" stroke-width="0.5"/>
+<text x="260" y="108" text-anchor="middle" font-family="DM Sans,sans-serif" font-size="11" font-weight="500" fill="#27500A">CP1: Parse</text>
+<text x="260" y="124" text-anchor="middle" font-family="DM Sans,sans-serif" font-size="9" fill="#27500A">pass/fail</text>
+
+<line x1="310" y1="114" x2="328" y2="114" stroke="#3B6D11" stroke-width="0.5" marker-end="url(#arr)"/>
+
+<rect x="330" y="90" width="100" height="48" rx="6" fill="#EAF3DE" stroke="#3B6D11" stroke-width="0.5"/>
+<text x="380" y="108" text-anchor="middle" font-family="DM Sans,sans-serif" font-size="11" font-weight="500" fill="#27500A">CP2: Diagnose</text>
+<text x="380" y="124" text-anchor="middle" font-family="DM Sans,sans-serif" font-size="9" fill="#27500A">confidence ≥ threshold</text>
+
+<line x1="430" y1="114" x2="448" y2="114" stroke="#3B6D11" stroke-width="0.5" marker-end="url(#arr)"/>
+
+<rect x="450" y="90" width="100" height="48" rx="6" fill="#EAF3DE" stroke="#3B6D11" stroke-width="0.5"/>
+<text x="500" y="108" text-anchor="middle" font-family="DM Sans,sans-serif" font-size="11" font-weight="500" fill="#27500A">CP3: Validate</text>
+<text x="500" y="124" text-anchor="middle" font-family="DM Sans,sans-serif" font-size="9" fill="#27500A">actions on allow-list</text>
+
+<line x1="550" y1="114" x2="568" y2="114" stroke="#3B6D11" stroke-width="0.5" marker-end="url(#arr)"/>
+
+<rect x="570" y="90" width="100" height="48" rx="6" fill="#EAF3DE" stroke="#3B6D11" stroke-width="0.5"/>
+<text x="620" y="108" text-anchor="middle" font-family="DM Sans,sans-serif" font-size="11" font-weight="500" fill="#27500A">CP4: Health</text>
+<text x="620" y="124" text-anchor="middle" font-family="DM Sans,sans-serif" font-size="9" fill="#27500A">metrics in SLA</text>
+
+<!-- Tools row -->
+<text x="210" y="160" font-family="DM Sans,sans-serif" font-size="10" font-weight="600" fill="#0C447C">TOOLS (allow-listed):</text>
+<rect x="320" y="150" width="80" height="22" rx="5" fill="#F1EFE8" stroke="#5F5E5A" stroke-width="0.5"/>
+<text x="360" y="161" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="10">check_status</text>
+<rect x="408" y="150" width="60" height="22" rx="5" fill="#F1EFE8" stroke="#5F5E5A" stroke-width="0.5"/>
+<text x="438" y="161" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="10">restart</text>
+<rect x="476" y="150" width="64" height="22" rx="5" fill="#F1EFE8" stroke="#5F5E5A" stroke-width="0.5"/>
+<text x="508" y="161" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="10">read_logs</text>
+<rect x="548" y="150" width="64" height="22" rx="5" fill="#F1EFE8" stroke="#5F5E5A" stroke-width="0.5"/>
+<text x="580" y="161" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="10">kill_query</text>
+<rect x="620" y="150" width="64" height="22" rx="5" fill="#F1EFE8" stroke="#5F5E5A" stroke-width="0.5"/>
+<text x="652" y="161" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="10">flush_dns</text>
+
+<!-- Agent box -->
+<rect x="210" y="182" width="140" height="24" rx="5" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/>
+<text x="280" y="194" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="10" font-weight="500" fill="#0C447C">ClaudeAgent (primary)</text>
+<rect x="362" y="182" width="140" height="24" rx="5" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/>
+<text x="432" y="194" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="10" font-weight="500" fill="#0C447C">OpenAIAgent (swap)</text>
+<text x="514" y="194" font-family="DM Sans,sans-serif" font-size="10" fill="#0C447C">← BaseAgent interface</text>
+
+<!-- Alarms -->
+<rect x="740" y="58" width="150" height="170" rx="8" fill="#EEEDFE" stroke="#534AB7" stroke-width="0.5"/>
+<text x="815" y="76" text-anchor="middle" font-family="DM Sans,sans-serif" font-size="11" font-weight="600" fill="#26215C">ALARMS</text>
+<text x="815" y="96" text-anchor="middle" font-family="DM Sans,sans-serif" font-size="10" fill="#3C3489">UNKNOWN_SERVICE</text>
+<text x="815" y="112" text-anchor="middle" font-family="DM Sans,sans-serif" font-size="10" fill="#3C3489">DESTRUCTIVE_ACTION</text>
+<text x="815" y="128" text-anchor="middle" font-family="DM Sans,sans-serif" font-size="10" fill="#3C3489">REMEDIATION_FAILED</text>
+<text x="815" y="144" text-anchor="middle" font-family="DM Sans,sans-serif" font-size="10" fill="#3C3489">TURN_LIMIT_REACHED</text>
+<text x="815" y="160" text-anchor="middle" font-family="DM Sans,sans-serif" font-size="10" fill="#3C3489">CONFIDENCE_LOW</text>
+
+<rect x="762" y="176" width="106" height="22" rx="5" fill="#FCEBEB" stroke="#A32D2D" stroke-width="0.5"/>
+<text x="815" y="187" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="10" font-weight="500" fill="#501313">CRITICAL → HALT</text>
+<rect x="762" y="202" width="106" height="18" rx="4" fill="#EAF3DE" stroke="#3B6D11" stroke-width="0.5"/>
+<text x="815" y="211" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="9" fill="#27500A">WARNING → LOG</text>
+
+<line x1="710" y1="114" x2="738" y2="114" stroke="#534AB7" stroke-width="0.5" marker-end="url(#arr)"/>
+
+<!-- Output -->
+<rect x="30" y="244" width="120" height="40" rx="7" fill="#FAEEDA" stroke="#854F0B" stroke-width="0.5"/>
+<text x="90" y="258" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="12" font-weight="500" fill="#412402">Report Out</text>
+<text x="90" y="274" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="10" fill="#633806">full incident record</text>
+
+<line x1="196" y1="228" x2="90" y2="244" stroke="#777" stroke-width="0.5" marker-end="url(#arr)"/>
+
+<!-- SQLite -->
+<rect x="740" y="244" width="150" height="40" rx="7" fill="#EAF3DE" stroke="#3B6D11" stroke-width="0.5"/>
+<text x="815" y="258" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="12" font-weight="500" fill="#27500A">SQLite</text>
+<text x="815" y="274" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="10" fill="#27500A">checkpoints + replay</text>
+
+<line x1="815" y1="228" x2="815" y2="242" stroke="#3B6D11" stroke-width="0.5" marker-end="url(#arr)"/>
+
+<!-- Human in the loop -->
+<rect x="380" y="244" width="200" height="40" rx="7" fill="#FCEBEB" stroke="#A32D2D" stroke-width="0.5"/>
+<text x="480" y="258" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="12" font-weight="500" fill="#501313">Human-in-the-Loop</text>
+<text x="480" y="274" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="10" fill="#791F1F">CRITICAL alarms → pause → API decision</text>
+
+<line x1="815" y1="222" x2="580" y2="252" stroke="#A32D2D" stroke-width="0.5" marker-end="url(#arr)"/>
+</svg>
+<div class="cap">End-to-end architecture. Guardrails wrap the loop. Checkpoints gate each stage. Alarms halt on critical. All four pillars are separate modules.</div>
+</div>
+
+<h3>Design Principles</h3>
+<div class="principles">
+  <div class="principle">
+    <div class="pl">Pillar Separation</div>
+    <p>Each pillar is a distinct Python module. The agent never touches guardrail config, checkpoint persistence, or alarm emission directly.</p>
+  </div>
+  <div class="principle">
+    <div class="pl">Declared, Not Implicit</div>
+    <p>Guardrails live in <code>guardrails.yaml</code>, not prompt engineering. Change what's allowed without changing code.</p>
+  </div>
+  <div class="principle">
+    <div class="pl">Block First, Ask Second</div>
+    <p>Any action not on the allow-list is blocked before execution. The AI cannot make things worse — it can only do what's pre-approved.</p>
+  </div>
+  <div class="principle">
+    <div class="pl">Swappable Agent</div>
+    <p><code>BaseAgent</code> abstract interface. Claude or OpenAI — zero harness changes. The harness is the product, not the model.</p>
+  </div>
+</div>
+
+
+<h2>2. The Four Pillars</h2>
+
+<table class="tbl">
+<tr><th>Pillar</th><th>Module</th><th>What It Does</th><th>Key Contract</th></tr>
+<tr>
+  <td><strong>Guardrails</strong></td>
+  <td><code>harness/guardrails.py</code></td>
+  <td>Loads YAML config. Checks every tool call against the allow-list. Enforces turn limits, token budgets, timeouts. Gates production access behind human approval.</td>
+  <td>Returns <code>Allowed</code>, <code>Blocked</code>, or <code>NeedsApproval</code> for every action.</td>
+</tr>
+<tr>
+  <td><strong>Checkpoints</strong></td>
+  <td><code>harness/checkpoints.py</code></td>
+  <td>Evaluates explicit pass/fail criteria at each stage (CP1–CP4). Persists state to SQLite. Enables replay from any checkpoint forward.</td>
+  <td>Each checkpoint returns <code>passed: bool</code> with state snapshot. Replay loads prior state, skips completed stages.</td>
+</tr>
+<tr>
+  <td><strong>Material Handling</strong></td>
+  <td><code>harness/material.py</code></td>
+  <td>Validates incoming alert JSON (Pydantic schema). Structures the outgoing remediation report: actions taken, outcomes, metrics before/after, downstream effects.</td>
+  <td>Invalid input rejected before the loop starts. Output is a complete incident record.</td>
+</tr>
+<tr>
+  <td><strong>Alarms</strong></td>
+  <td><code>harness/alarms.py</code></td>
+  <td>Emits structured signals when something goes wrong. Five named types with severity. CRITICAL alarms halt the loop and trigger human-in-the-loop escalation.</td>
+  <td>Each alarm: <code>{type, context, severity, recommended_action}</code>. CRITICAL = halt. WARNING = log.</td>
+</tr>
+</table>
+
+
+<h2>3. Key Decisions</h2>
+
+<p><strong>Why the agent can't bypass guardrails:</strong> The tool registry checks the allow-list <em>before</em> executing any tool. The agent receives a "blocked" result and must choose a different action. This is the core safety guarantee — an unconstrained AI responding to a production incident can take the system down.</p>
+
+<p><strong>Why SQLite for checkpoints:</strong> Single-file, zero infrastructure, persists on Railway's volume. Replay is a query, not a re-run. At this scale, it's the simplest correct choice.</p>
+
+<p><strong>Why YAML for guardrails config:</strong> Human-readable, version-controllable, diffable. An ops team can review and approve guardrail changes in a PR. The agent never reads this file — only the harness does.</p>
+
+<div class="callout amber">
+<div class="ch">The core safety contract</div>
+<p>The agent proposes. The harness disposes. No action executes without passing the guardrail allow-list check. No checkpoint passes without meeting explicit criteria. No critical failure goes unescalated. The model is the engine — the harness is the car.</p>
+</div>
+
+</body>
+</html>

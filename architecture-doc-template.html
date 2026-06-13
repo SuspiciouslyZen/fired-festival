@@ -1,0 +1,1051 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Architecture Design Document — Template</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=DM+Sans:wght@400;500;600&display=swap');
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'DM Sans',sans-serif;font-size:15px;line-height:1.7;color:#1a1a1a;max-width:860px;margin:0 auto;padding:60px 48px}
+
+/* ── Header ── */
+.hdr{border-bottom:2px solid #1a1a1a;padding-bottom:24px;margin-bottom:36px}
+.hdr .tag{font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:#777;font-weight:600;margin-bottom:8px}
+.hdr h1{font-family:'Source Serif 4',Georgia,serif;font-size:32px;font-weight:700;line-height:1.2;margin-bottom:6px}
+.hdr .sub{font-size:16px;color:#4a4a4a}
+.meta{display:flex;gap:28px;margin-top:14px;font-size:13px;color:#777}
+.meta b{color:#4a4a4a;font-weight:600}
+
+/* ── Typography ── */
+h2{font-family:'Source Serif 4',Georgia,serif;font-size:22px;font-weight:600;margin:36px 0 12px;padding-bottom:6px;border-bottom:1px solid #e2e0da}
+h3{font-size:17px;font-weight:600;margin:28px 0 10px}
+p{margin-bottom:14px;color:#4a4a4a}
+p strong{color:#1a1a1a}
+code{font-family:'JetBrains Mono',monospace;font-size:12px;background:#f7f6f3;padding:1px 6px;border-radius:3px;color:#1a1a1a}
+
+/* ── Figure / diagram container ── */
+.fig{background:#f7f6f3;border:1px solid #e2e0da;border-radius:10px;padding:24px 16px;margin:20px 0}
+.fig .cap{font-size:12px;color:#777;text-align:center;margin-top:12px;font-style:italic}
+
+/* ── Tables ── */
+.tbl{width:100%;border-collapse:collapse;font-size:13px;margin:18px 0}
+.tbl th{text-align:left;font-weight:600;padding:9px 12px;border-bottom:2px solid #1a1a1a;font-size:12px;letter-spacing:0.03em;text-transform:uppercase}
+.tbl td{padding:9px 12px;border-bottom:1px solid #e2e0da;color:#4a4a4a;vertical-align:top}
+.tbl tr:last-child td{border-bottom:none}
+.tbl code{font-family:'JetBrains Mono',monospace;font-size:12px;background:#f7f6f3;padding:1px 6px;border-radius:3px;color:#1a1a1a}
+
+/* ── Callouts ── */
+.callout{border-radius:10px;padding:18px 22px;margin:22px 0}
+.callout.blue{background:#ebf2fa;border:1px solid #c3d9f0}
+.callout.amber{background:#fef8ec;border:1px solid #f0ddb0}
+.callout.green{background:#eaf3de;border:1px solid #b8d98d}
+.callout .ch{font-weight:600;font-size:14px;margin-bottom:8px}
+.callout.blue .ch{color:#2c5282}
+.callout.amber .ch{color:#854F0B}
+.callout.green .ch{color:#27500A}
+.callout p:last-child{margin-bottom:0}
+
+/* ── Principles grid (2-col) ── */
+.principles{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:18px 0 24px}
+.principle{background:#f7f6f3;border-left:3px solid #2c5282;padding:12px 16px;border-radius:0 8px 8px 0}
+.principle .pl{font-size:13px;font-weight:600;color:#2c5282;margin-bottom:3px}
+.principle p{font-size:13px;margin:0;line-height:1.5}
+
+/* ── Cost bar chart ── */
+.legend{display:flex;flex-wrap:wrap;gap:14px;margin:14px 0;font-size:12px;color:#777}
+.legend span{display:flex;align-items:center;gap:4px}
+.legend .sw{width:10px;height:10px;border-radius:2px}
+.bar-row{display:flex;align-items:center;gap:8px;margin:6px 0;font-size:13px;color:#4a4a4a}
+.bar-row .bl{width:70px;text-align:right;font-weight:600;color:#1a1a1a}
+.bar-row .bw{flex:1;height:22px;display:flex;border-radius:5px;overflow:hidden}
+.bar-row .bs{height:100%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;min-width:0;overflow:hidden}
+.bar-row .bt{width:65px;text-align:right;font-weight:600;color:#1a1a1a;font-size:14px}
+
+/* ── Cost summary cards ── */
+.cost-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin:14px 0}
+.cost-item .amt{font-family:'Source Serif 4',Georgia,serif;font-size:26px;font-weight:700;color:#1a1a1a}
+.cost-item .per{font-size:13px;color:#777}
+.cost-item .desc{font-size:12px;color:#777;margin-top:2px}
+
+/* ── Roadmap phases ── */
+.phase{margin-bottom:24px;position:relative}
+.phase-h{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.phase-n{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600}
+.phase-t{font-size:15px;font-weight:600}
+.phase-d{font-size:12px;color:#777}
+.track{display:flex;gap:8px;margin:5px 0 5px 36px}
+.task{font-size:12px;padding:6px 11px;border-radius:5px;line-height:1.4;flex:1}
+.wk{font-size:11px;color:#777;margin-left:36px;margin-bottom:2px;margin-top:8px}
+.dep{margin:6px 0 6px 36px;font-size:12px;padding:7px 12px;border-radius:5px;border:1.5px dashed #aaa;color:#777;background:#f7f6f3}
+.dep strong{color:#4a4a4a}
+.gate{margin:10px 0;font-size:12px;font-weight:600;color:#854F0B;padding:8px 14px;background:#fef8ec;border-radius:6px;border:1px solid #f0ddb0}
+
+/* ── Comparison grid (BI / tool evaluation) ── */
+.bi-grid{display:grid;grid-template-columns:100px repeat(3,1fr);font-size:12px;border:1px solid #e2e0da;border-radius:8px;overflow:hidden}
+.bi-grid .bh{font-weight:600;padding:10px;background:#f7f6f3;border-bottom:1px solid #e2e0da;text-align:center}
+.bi-grid .bh:first-child{text-align:right}
+.bi-grid .bc{padding:8px 10px;border-bottom:1px solid #e2e0da;color:#4a4a4a;line-height:1.4}
+.bi-grid .rl{font-weight:600;text-align:right;background:#fafaf8}
+
+/* ── Status pills ── */
+.pill{display:inline-block;padding:1px 7px;border-radius:10px;font-size:11px;font-weight:600}
+.pill.g{background:#EAF3DE;color:#27500A}
+.pill.y{background:#FAEEDA;color:#633806}
+.pill.r{background:#FCEBEB;color:#791F1F}
+
+/* ── Recommendation badge ── */
+.rec-badge{display:inline-block;background:#ebf2fa;color:#2c5282;font-size:11px;padding:2px 9px;border-radius:8px;font-weight:600}
+
+/* ── Print ── */
+@media print{
+  body{padding:20px}
+  .principles{break-inside:avoid}
+  .fig{break-inside:avoid}
+  @page{margin:0.75in;size:letter}
+}
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════════
+     HEADER
+     ══════════════════════════════════════════════════════ -->
+<header class="hdr">
+  <div class="tag">Architecture Design Document</div>
+  <h1>System / Feature Name</h1>
+  <div class="sub">One-sentence description of what is being designed and why it matters</div>
+  <div class="meta">
+    <span><b>Status:</b> Draft</span>
+    <span><b>Version:</b> 0.1</span>
+    <span><b>Updated:</b> Month DD, YYYY</span>
+  </div>
+  <div class="meta" style="margin-top:8px">
+    <span><b>Reviewed by:</b> ________________________</span>
+    <span><b>Date:</b> _______________</span>
+    <span><b>Approval:</b> ☐ Approved ☐ Revisions needed</span>
+  </div>
+</header>
+
+
+<!-- ══════════════════════════════════════════════════════
+     1. OVERVIEW
+     ══════════════════════════════════════════════════════ -->
+<h2>1. Overview</h2>
+
+<p>Opening paragraph: describe the system in plain language. Who uses it, what it does, and what problem it solves. No implementation detail yet — just the "what and why."</p>
+
+<p>Second paragraph: describe the key architectural decision or design philosophy that guides everything else. Use <strong>bold</strong> for proper nouns and critical terms. Explain the non-obvious constraint or tradeoff that shapes the design.</p>
+
+<!-- Architecture diagram placeholder -->
+<div class="fig">
+<svg width="100%" viewBox="0 0 680 340" xmlns="http://www.w3.org/2000/svg">
+<defs>
+  <marker id="arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+    <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </marker>
+</defs>
+
+<!-- Legend -->
+<rect x="42" y="8" width="10" height="10" rx="2" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/><text x="56" y="17" font-family="DM Sans,sans-serif" font-size="12" fill="#777">Layer A</text>
+<rect x="120" y="8" width="10" height="10" rx="2" fill="#EAF3DE" stroke="#3B6D11" stroke-width="0.5"/><text x="134" y="17" font-family="DM Sans,sans-serif" font-size="12" fill="#777">Layer B</text>
+<rect x="194" y="8" width="10" height="10" rx="2" fill="#FAEEDA" stroke="#854F0B" stroke-width="0.5"/><text x="208" y="17" font-family="DM Sans,sans-serif" font-size="12" fill="#777">Layer C</text>
+<rect x="274" y="8" width="10" height="10" rx="2" fill="#EEEDFE" stroke="#534AB7" stroke-width="0.5"/><text x="288" y="17" font-family="DM Sans,sans-serif" font-size="12" fill="#777">Layer D</text>
+<rect x="354" y="8" width="10" height="10" rx="2" fill="#FCEBEB" stroke="#A32D2D" stroke-width="0.5"/><text x="368" y="17" font-family="DM Sans,sans-serif" font-size="12" fill="#777">Cross-cutting</text>
+<line x1="450" y1="13" x2="480" y2="13" stroke="#777" stroke-width="1"/><text x="484" y="17" font-family="DM Sans,sans-serif" font-size="12" fill="#777">Sync</text>
+<line x1="524" y1="13" x2="554" y2="13" stroke="#777" stroke-width="1" stroke-dasharray="4 3"/><text x="558" y="17" font-family="DM Sans,sans-serif" font-size="12" fill="#777">Async</text>
+
+<!-- Row 1: Sources / inputs -->
+<text x="12" y="60" font-family="DM Sans,sans-serif" font-size="12" fill="#777" font-style="italic">Sources</text>
+<rect x="60" y="42" width="150" height="40" rx="8" fill="#F1EFE8" stroke="#5F5E5A" stroke-width="0.5"/>
+<text x="135" y="62" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="13" font-weight="500">Source A</text>
+<rect x="225" y="42" width="150" height="40" rx="8" fill="#F1EFE8" stroke="#5F5E5A" stroke-width="0.5"/>
+<text x="300" y="62" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="13" font-weight="500">Source B</text>
+<rect x="390" y="42" width="150" height="40" rx="8" fill="#F1EFE8" stroke="#5F5E5A" stroke-width="0.5"/>
+<text x="465" y="62" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="13" font-weight="500">Source C</text>
+
+<line x1="135" y1="82" x2="135" y2="112" stroke="#777" stroke-width="0.5" marker-end="url(#arr)"/>
+<line x1="300" y1="82" x2="300" y2="112" stroke="#777" stroke-width="0.5" marker-end="url(#arr)"/>
+<line x1="465" y1="82" x2="465" y2="112" stroke="#777" stroke-width="0.5" marker-end="url(#arr)"/>
+
+<!-- Row 2: Layer A -->
+<text x="4" y="138" font-family="DM Sans,sans-serif" font-size="12" fill="#777" font-style="italic">Layer A</text>
+<rect x="60" y="114" width="150" height="48" rx="8" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/>
+<text x="135" y="134" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="13" font-weight="500" fill="#0C447C">Component A1</text>
+<text x="135" y="150" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="11" fill="#0C447C">subtitle / description</text>
+<rect x="225" y="114" width="150" height="48" rx="8" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/>
+<text x="300" y="134" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="13" font-weight="500" fill="#0C447C">Component A2</text>
+<text x="300" y="150" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="11" fill="#0C447C">subtitle / description</text>
+<rect x="390" y="114" width="150" height="48" rx="8" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/>
+<text x="465" y="134" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="13" font-weight="500" fill="#0C447C">Component A3</text>
+<text x="465" y="150" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="11" fill="#0C447C">subtitle / description</text>
+
+<line x1="260" y1="138" x2="260" y2="186" stroke="#777" stroke-width="0.5" marker-end="url(#arr)"/>
+
+<!-- Row 3: Central store / Layer B -->
+<rect x="60" y="188" width="540" height="60" rx="10" fill="#EAF3DE" stroke="#3B6D11" stroke-width="0.5"/>
+<text x="330" y="210" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="14" font-weight="500" fill="#27500A">Central System / Layer B — shared by all consumers</text>
+<text x="330" y="230" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="12" fill="#27500A">Key property · Key property · Key property</text>
+
+<line x1="330" y1="248" x2="330" y2="272" stroke="#777" stroke-width="0.5" marker-end="url(#arr)"/>
+
+<!-- Row 4: Serving / Layer C -->
+<text x="4" y="298" font-family="DM Sans,sans-serif" font-size="12" fill="#777" font-style="italic">Serve</text>
+<rect x="60" y="274" width="160" height="48" rx="8" fill="#EEEDFE" stroke="#534AB7" stroke-width="0.5"/>
+<text x="140" y="292" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="13" font-weight="500" fill="#26215C">Consumer A</text>
+<text x="140" y="308" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="11" fill="#3C3489">description</text>
+<rect x="240" y="274" width="160" height="48" rx="8" fill="#EEEDFE" stroke="#534AB7" stroke-width="0.5"/>
+<text x="320" y="292" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="13" font-weight="500" fill="#26215C">Consumer B</text>
+<text x="320" y="308" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="11" fill="#3C3489">description</text>
+<rect x="420" y="274" width="160" height="48" rx="8" fill="#EEEDFE" stroke="#534AB7" stroke-width="0.5"/>
+<text x="500" y="292" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="13" font-weight="500" fill="#26215C">Consumer C</text>
+<text x="500" y="308" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="11" fill="#3C3489">description</text>
+
+<!-- Cross-cutting governance bar -->
+<rect x="60" y="332" width="540" height="24" rx="6" fill="#FCEBEB" stroke="#A32D2D" stroke-width="0.5" stroke-dasharray="4 3"/>
+<text x="330" y="344" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="12" font-weight="500" fill="#501313">Cross-cutting concern (auth / audit / monitoring / governance)</text>
+</svg>
+<div class="cap">Figure 1 — End-to-end system architecture. Solid arrows indicate synchronous flow; dashed arrows indicate asynchronous flow.</div>
+</div>
+
+<!-- Guiding principles -->
+<h3>Guiding principles</h3>
+
+<div class="principles">
+  <div class="principle">
+    <div class="pl">Principle 1 — Short Name</div>
+    <p>One or two sentences explaining this principle and why it matters for this system.</p>
+  </div>
+  <div class="principle">
+    <div class="pl">Principle 2 — Short Name</div>
+    <p>One or two sentences explaining this principle and why it matters for this system.</p>
+  </div>
+  <div class="principle">
+    <div class="pl">Principle 3 — Short Name</div>
+    <p>One or two sentences explaining this principle and why it matters for this system.</p>
+  </div>
+  <div class="principle">
+    <div class="pl">Principle 4 — Short Name</div>
+    <p>One or two sentences explaining this principle and why it matters for this system.</p>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════
+     2. LAYER / COMPONENT A
+     ══════════════════════════════════════════════════════ -->
+<h2>2. Layer / Component A</h2>
+
+<p>Introduce this layer. What is its job? What contract does it expose to the next layer? What is the key design decision here?</p>
+
+<h3>Sub-topic 2.1</h3>
+
+<p><strong>Pattern A — Name:</strong> Description of the first pattern or approach. Include the "why" — what property of the system or workload makes this the right choice.</p>
+
+<p><strong>Pattern B — Name:</strong> Description of the second pattern. Be concrete about inputs, outputs, and error cases.</p>
+
+<p><strong>Pattern C — Name:</strong> Description of the third pattern. Call out cost, timing, or SLA implications if relevant.</p>
+
+<!-- Detail diagram placeholder -->
+<div class="fig">
+<svg width="100%" viewBox="0 0 680 220" xmlns="http://www.w3.org/2000/svg">
+<defs>
+  <marker id="arr2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+    <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </marker>
+</defs>
+
+<!-- Pattern A -->
+<text x="50" y="24" font-family="DM Sans,sans-serif" font-size="13" font-weight="500">Pattern A: Name</text>
+<rect x="50" y="36" width="110" height="36" rx="7" fill="#F1EFE8" stroke="#5F5E5A" stroke-width="0.5"/>
+<text x="105" y="54" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="12" font-weight="500">Source</text>
+<line x1="160" y1="54" x2="190" y2="54" stroke="#777" stroke-width="0.5" marker-end="url(#arr2)"/>
+<rect x="192" y="36" width="120" height="36" rx="7" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/>
+<text x="252" y="54" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="12" font-weight="500" fill="#0C447C">Component</text>
+<line x1="312" y1="54" x2="342" y2="54" stroke="#777" stroke-width="0.5" marker-end="url(#arr2)"/>
+
+<!-- Pattern B -->
+<text x="50" y="100" font-family="DM Sans,sans-serif" font-size="13" font-weight="500">Pattern B: Name</text>
+<rect x="50" y="112" width="110" height="36" rx="7" fill="#F1EFE8" stroke="#5F5E5A" stroke-width="0.5"/>
+<text x="105" y="130" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="12" font-weight="500">Source</text>
+<line x1="160" y1="130" x2="190" y2="130" stroke="#777" stroke-width="0.5" marker-end="url(#arr2)"/>
+<rect x="192" y="112" width="120" height="36" rx="7" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/>
+<text x="252" y="130" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="12" font-weight="500" fill="#0C447C">Component</text>
+<line x1="312" y1="130" x2="342" y2="130" stroke="#777" stroke-width="0.5" marker-end="url(#arr2)"/>
+
+<!-- Shared destination -->
+<rect x="344" y="60" width="110" height="100" rx="10" fill="#EAF3DE" stroke="#3B6D11" stroke-width="0.5"/>
+<text x="399" y="104" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="13" font-weight="500" fill="#27500A">Destination</text>
+<text x="399" y="124" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="11" fill="#27500A">(all patterns)</text>
+
+<!-- Universal contract -->
+<rect x="50" y="178" width="560" height="36" rx="8" fill="#EAF3DE" stroke="#3B6D11" stroke-width="0.5"/>
+<text x="330" y="196" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="13" font-weight="500" fill="#27500A">Universal contract: all patterns satisfy — property A · property B · property C</text>
+</svg>
+<div class="cap">Figure 2 — Layer A detail: multiple input patterns converging on a shared contract.</div>
+</div>
+
+<h3>Considered and rejected</h3>
+
+<table class="tbl">
+<tr><th>Option</th><th>Why rejected</th></tr>
+<tr><td><strong>Alternative A</strong></td><td>Explain why this option was evaluated but not chosen. Be specific about the tradeoff — cost, complexity, team capability, scale mismatch, etc.</td></tr>
+<tr><td><strong>Alternative B</strong></td><td>Explain the tradeoff. Note if this is worth revisiting at a different scale or team size. <strong>Mark "strongest revisit" candidates.</strong></td></tr>
+<tr><td><strong>Alternative C</strong></td><td>Explain why this option doesn't fit the constraints of this system. May be the right answer for a different context.</td></tr>
+</table>
+
+<h3>Cost estimate</h3>
+
+<table class="tbl">
+<tr><th>Component</th><th>Current (baseline)</th><th>3× scale</th><th>10× scale</th></tr>
+<tr><td>Component A1</td><td>~$X/mo</td><td>~$X/mo</td><td>~$X/mo</td></tr>
+<tr><td>Component A2</td><td>~$X/mo</td><td>~$X/mo</td><td>~$X/mo</td></tr>
+<tr><td>Component A3 (conditional)</td><td>$0 or ~$X/mo</td><td>~$X/mo</td><td>~$X/mo</td></tr>
+<tr><td><strong>Total — Layer A</strong></td><td><strong>~$X–Y/mo</strong></td><td><strong>~$X–Y/mo</strong></td><td><strong>~$X–Y/mo</strong></td></tr>
+</table>
+
+<div class="callout blue">
+<div class="ch">Operational burden: Low / Medium / High</div>
+<p>Describe ongoing ops work required. Name specific metrics to monitor and the CloudWatch alarms or dashboards that cover them. Call out one-time setup vs. recurring work.</p>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════
+     3. LAYER / COMPONENT B
+     ══════════════════════════════════════════════════════ -->
+<h2>3. Layer / Component B</h2>
+
+<p>Introduce this layer. Reference the architectural decision that most influences the design here. Use <strong>bold</strong> for the decision itself.</p>
+
+<h3>Why [chosen approach]</h3>
+
+<p>First: explain the positive case for the chosen approach. What properties does it provide? What problem does it solve that alternatives do not?</p>
+
+<p>Second: explicitly compare to the nearest alternative and explain the difference. If the gap is cost, quantify it. If the gap is complexity, describe the specific operational work. If the gap is maturity, describe the specific risks.</p>
+
+<h3>Zones / tiers / states (if applicable)</h3>
+
+<!-- Multi-zone / medallion diagram placeholder -->
+<div class="fig">
+<svg width="100%" viewBox="0 0 680 220" xmlns="http://www.w3.org/2000/svg">
+<defs>
+  <marker id="arr3" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+    <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </marker>
+</defs>
+
+<!-- Outer container -->
+<rect x="170" y="16" width="470" height="154" rx="12" fill="#EAF3DE" stroke="#3B6D11" stroke-width="0.5"/>
+<text x="405" y="36" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="13" font-weight="500" fill="#27500A">System B — shared container</text>
+
+<!-- Pre-stage (outside) -->
+<rect x="32" y="44" width="108" height="98" rx="9" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/>
+<text x="86" y="64" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="13" font-weight="500" fill="#0C447C">Stage 0</text>
+<text x="86" y="84" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="11" fill="#0C447C">Property A</text>
+<text x="86" y="100" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="11" fill="#0C447C">Property B</text>
+<text x="86" y="116" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="11" fill="#0C447C">Property C</text>
+<line x1="140" y1="93" x2="162" y2="93" stroke="#185FA5" stroke-width="0.5" marker-end="url(#arr3)"/>
+
+<!-- Stage 1 -->
+<rect x="180" y="44" width="120" height="98" rx="9" fill="#E1F5EE" stroke="#0F6E56" stroke-width="0.5"/>
+<text x="240" y="64" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="13" font-weight="500" fill="#085041">Stage 1 (raw)</text>
+<text x="240" y="84" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="11" fill="#085041">Property A</text>
+<text x="240" y="100" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="11" fill="#085041">Property B</text>
+<text x="240" y="116" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="11" fill="#085041">Property C</text>
+
+<!-- Stage 2 -->
+<rect x="320" y="44" width="120" height="98" rx="9" fill="#E1F5EE" stroke="#0F6E56" stroke-width="0.5"/>
+<text x="380" y="64" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="13" font-weight="500" fill="#085041">Stage 2 (clean)</text>
+<text x="380" y="84" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="11" fill="#085041">Property A</text>
+<text x="380" y="100" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="11" fill="#085041">Property B</text>
+<text x="380" y="116" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="11" fill="#085041">Property C</text>
+
+<!-- Stage 3 -->
+<rect x="460" y="44" width="130" height="98" rx="9" fill="#E1F5EE" stroke="#0F6E56" stroke-width="0.5"/>
+<text x="525" y="64" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="13" font-weight="500" fill="#085041">Stage 3 (serving)</text>
+<text x="525" y="84" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="11" fill="#085041">Property A</text>
+<text x="525" y="100" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="11" fill="#085041">Property B</text>
+<text x="525" y="116" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="11" fill="#085041">Property C</text>
+
+<!-- Arrows between stages -->
+<line x1="300" y1="93" x2="318" y2="93" stroke="#0F6E56" stroke-width="0.5" marker-end="url(#arr3)"/>
+<line x1="440" y1="93" x2="458" y2="93" stroke="#0F6E56" stroke-width="0.5" marker-end="url(#arr3)"/>
+
+<!-- Key decision callout -->
+<rect x="32" y="160" width="610" height="36" rx="7" fill="#F1EFE8" stroke="#5F5E5A" stroke-width="0.5"/>
+<text x="337" y="172" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="13" font-weight="500">Key decision: [what was chosen] — reason A and reason B</text>
+<text x="337" y="188" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="11" fill="#777">Consequence of this choice.</text>
+</svg>
+<div class="cap">Figure 3 — Layer B: pre-stage (quarantine) feeds into main stages: raw → clean → serving.</div>
+</div>
+
+<h3>Considered and rejected</h3>
+
+<table class="tbl">
+<tr><th>Option</th><th>Why rejected</th></tr>
+<tr><td><strong>Alternative A</strong></td><td>Why this was not chosen.</td></tr>
+<tr><td><strong>Alternative B</strong></td><td>Why this was not chosen.</td></tr>
+</table>
+
+<h3>Cost estimate</h3>
+
+<table class="tbl">
+<tr><th>Component</th><th>Current (baseline)</th><th>3× scale</th><th>10× scale</th></tr>
+<tr><td>Component B1</td><td>~$X/mo</td><td>~$X/mo</td><td>~$X/mo</td></tr>
+<tr><td>Component B2</td><td>~$X/mo</td><td>~$X/mo</td><td>~$X/mo</td></tr>
+<tr><td><strong>Total — Layer B</strong></td><td><strong>~$X/mo</strong></td><td><strong>~$X/mo</strong></td><td><strong>~$X/mo</strong></td></tr>
+</table>
+
+<div class="callout blue">
+<div class="ch">Operational burden: Low</div>
+<p>What needs periodic maintenance? Name the specific tasks, their frequency, and whether they are one-time or recurring. Call out any automation opportunity.</p>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════
+     4. LAYER / COMPONENT C
+     ══════════════════════════════════════════════════════ -->
+<h2>4. Layer / Component C</h2>
+
+<p>Describe this layer. What compute, logic, or transformation happens here? What does its output look like?</p>
+
+<h3>Why [chosen tool / approach] over [main alternative]</h3>
+
+<p>First paragraph: the positive case. Specific capabilities that matter for this workload.</p>
+
+<p>Second paragraph: quantified comparison to the main alternative. If you can put numbers on it ($X/month cheaper, Yms faster, Z fewer services to manage), do so. State explicitly why the numbers favor the choice you made.</p>
+
+<!-- Process / transform diagram placeholder -->
+<div class="fig">
+<svg width="100%" viewBox="0 0 680 240" xmlns="http://www.w3.org/2000/svg">
+<defs>
+  <marker id="arr4" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+    <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </marker>
+</defs>
+
+<!-- Inputs -->
+<rect x="40" y="20" width="130" height="36" rx="7" fill="#EAF3DE" stroke="#3B6D11" stroke-width="0.5"/>
+<text x="105" y="38" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="12" font-weight="500" fill="#27500A">Input A</text>
+<rect x="40" y="66" width="130" height="36" rx="7" fill="#EAF3DE" stroke="#3B6D11" stroke-width="0.5"/>
+<text x="105" y="84" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="12" font-weight="500" fill="#27500A">Input B</text>
+
+<line x1="170" y1="38" x2="222" y2="58" stroke="#777" stroke-width="0.5" marker-end="url(#arr4)"/>
+<line x1="170" y1="84" x2="222" y2="68" stroke="#777" stroke-width="0.5" marker-end="url(#arr4)"/>
+<text x="174" y="54" font-family="DM Sans,sans-serif" font-size="11" fill="#777">reads from</text>
+
+<!-- Engine -->
+<rect x="224" y="36" width="180" height="64" rx="10" fill="#FAEEDA" stroke="#854F0B" stroke-width="0.5"/>
+<text x="314" y="58" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="13" font-weight="500" fill="#412402">Processing Engine</text>
+<text x="314" y="78" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="11" fill="#633806">key property · key property</text>
+
+<!-- Transform layers -->
+<rect x="224" y="128" width="180" height="80" rx="10" fill="#FAEEDA" stroke="#854F0B" stroke-width="0.5"/>
+<text x="314" y="148" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="13" font-weight="500" fill="#412402">Transform Logic</text>
+<text x="314" y="168" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="11" fill="#633806">step 1 → step 2 → step 3 → output</text>
+<text x="314" y="186" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="11" fill="#633806">tests + docs built-in</text>
+
+<line x1="314" y1="100" x2="314" y2="126" stroke="#854F0B" stroke-width="0.5" marker-end="url(#arr4)"/>
+<text x="322" y="116" font-family="DM Sans,sans-serif" font-size="11" fill="#854F0B">executes on</text>
+
+<!-- Output -->
+<line x1="224" y1="168" x2="105" y2="168" stroke="#854F0B" stroke-width="0.5" marker-end="url(#arr4)"/>
+<rect x="40" y="148" width="130" height="40" rx="7" fill="#EAF3DE" stroke="#3B6D11" stroke-width="0.5"/>
+<text x="105" y="168" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="12" font-weight="500" fill="#27500A">Output</text>
+
+<!-- Step ladder (right) -->
+<text x="460" y="140" font-family="DM Sans,sans-serif" font-size="13" font-weight="500">Transform steps</text>
+<rect x="458" y="152" width="160" height="22" rx="5" fill="#F1EFE8" stroke="#5F5E5A" stroke-width="0.5"/>
+<text x="538" y="163" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="11">Step 1 (raw / source)</text>
+<line x1="538" y1="174" x2="538" y2="180" stroke="#777" stroke-width="0.5" marker-end="url(#arr4)"/>
+<rect x="458" y="182" width="160" height="22" rx="5" fill="#F1EFE8" stroke="#5F5E5A" stroke-width="0.5"/>
+<text x="538" y="193" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="11">Step 2 (intermediate)</text>
+<line x1="538" y1="204" x2="538" y2="210" stroke="#777" stroke-width="0.5" marker-end="url(#arr4)"/>
+<rect x="458" y="212" width="160" height="22" rx="5" fill="#EEEDFE" stroke="#534AB7" stroke-width="0.5"/>
+<text x="538" y="223" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="11" fill="#26215C">Step 3 (output / serving)</text>
+</svg>
+<div class="cap">Figure 4 — Layer C: transform logic with step-by-step processing pipeline.</div>
+</div>
+
+<h3>Considered and rejected</h3>
+
+<table class="tbl">
+<tr><th>Tool</th><th>Why rejected</th></tr>
+<tr><td><strong>Alternative A</strong></td><td>Why rejected. At what scale would you revisit?</td></tr>
+<tr><td><strong>Alternative B</strong></td><td>Why rejected. Note if it handles a subset of use cases.</td></tr>
+<tr><td><strong>Alternative C</strong></td><td>Why rejected.</td></tr>
+</table>
+
+<h3>Cost estimate</h3>
+
+<table class="tbl">
+<tr><th>Component</th><th>Current (baseline)</th><th>3× scale</th><th>10× scale</th></tr>
+<tr><td>Engine</td><td>~$X/mo</td><td>~$X/mo</td><td>~$X/mo</td></tr>
+<tr><td>Compute</td><td>~$X/mo</td><td>~$X/mo</td><td>~$X/mo</td></tr>
+<tr><td><strong>Total — Layer C</strong></td><td><strong>~$X/mo</strong></td><td><strong>~$X/mo</strong></td><td><strong>~$X/mo</strong></td></tr>
+</table>
+
+<div class="callout blue">
+<div class="ch">Operational burden: Low–Medium</div>
+<p>What monitoring is needed? What alerts should be set up on day 1? What does "something is wrong" look like in metrics?</p>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════
+     5. LAYER / COMPONENT D — SERVING / OUTPUT
+     ══════════════════════════════════════════════════════ -->
+<h2>5. Layer / Component D — Serving</h2>
+
+<p>Describe how the system exposes its outputs. Who are the consumers? What are the access patterns (read-heavy, write-heavy, interactive, batch, API, UI)?</p>
+
+<h3>Serving architecture</h3>
+
+<p><strong>Consumer type A</strong> (e.g., internal users, ops team): describe how they access data, what latency is acceptable, and what tooling they use.</p>
+
+<p><strong>Consumer type B</strong> (e.g., applications, services): describe the API or integration pattern, latency requirements, and caching strategy.</p>
+
+<p><strong>Consumer type C</strong> (e.g., external users, embedded): describe the delivery mechanism and any row/column security requirements.</p>
+
+<!-- Serving flow diagram placeholder -->
+<div class="fig">
+<svg width="100%" viewBox="0 0 680 360" xmlns="http://www.w3.org/2000/svg">
+<defs>
+  <marker id="arr5" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+    <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </marker>
+</defs>
+
+<!-- Top: data source -->
+<rect x="180" y="20" width="320" height="36" rx="7" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/>
+<text x="340" y="38" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="13" font-weight="500" fill="#0C447C">Upstream data / pipeline output</text>
+
+<line x1="340" y1="56" x2="340" y2="76" stroke="#777" stroke-width="0.5" marker-end="url(#arr5)"/>
+
+<!-- Data store -->
+<rect x="180" y="78" width="320" height="36" rx="7" fill="#EAF3DE" stroke="#3B6D11" stroke-width="0.5"/>
+<text x="340" y="96" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="13" font-weight="500" fill="#27500A">Data Store / Gold Layer</text>
+
+<line x1="340" y1="114" x2="340" y2="134" stroke="#777" stroke-width="0.5" marker-end="url(#arr5)"/>
+
+<!-- Central query engine -->
+<rect x="100" y="136" width="480" height="60" rx="10" fill="#FAEEDA" stroke="#854F0B" stroke-width="1"/>
+<text x="340" y="158" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="14" font-weight="600" fill="#412402">Query / Serving Engine — single layer for all consumers</text>
+<text x="340" y="178" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="11" fill="#633806">caching · access control · auto-scales · materialized views</text>
+
+<!-- Left: Consumer A -->
+<line x1="220" y1="196" x2="155" y2="234" stroke="#777" stroke-width="0.5" marker-end="url(#arr5)"/>
+<rect x="50" y="236" width="200" height="44" rx="8" fill="#EEEDFE" stroke="#534AB7" stroke-width="0.5"/>
+<text x="150" y="252" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="13" font-weight="500" fill="#26215C">Consumer A</text>
+<text x="150" y="268" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="11" fill="#3C3489">description (e.g., BI tool, internal)</text>
+
+<line x1="90" y1="280" x2="90" y2="308" stroke="#777" stroke-width="0.5" marker-end="url(#arr5)"/>
+<line x1="200" y1="280" x2="200" y2="308" stroke="#777" stroke-width="0.5" marker-end="url(#arr5)"/>
+<rect x="50" y="310" width="85" height="28" rx="6" fill="#F1EFE8" stroke="#5F5E5A" stroke-width="0.5"/>
+<text x="92" y="324" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="11">User type A</text>
+<rect x="152" y="310" width="85" height="28" rx="6" fill="#F1EFE8" stroke="#5F5E5A" stroke-width="0.5"/>
+<text x="194" y="324" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="11">User type B</text>
+
+<!-- Right: Consumer B -->
+<line x1="460" y1="196" x2="525" y2="234" stroke="#777" stroke-width="0.5" marker-end="url(#arr5)"/>
+<rect x="420" y="236" width="210" height="44" rx="8" fill="#EEEDFE" stroke="#534AB7" stroke-width="0.5"/>
+<text x="525" y="252" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="13" font-weight="500" fill="#26215C">Consumer B</text>
+<text x="525" y="268" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="11" fill="#3C3489">description (e.g., API, app-to-app)</text>
+
+<line x1="470" y1="280" x2="470" y2="308" stroke="#777" stroke-width="0.5" marker-end="url(#arr5)"/>
+<line x1="580" y1="280" x2="580" y2="308" stroke="#777" stroke-width="0.5" marker-end="url(#arr5)"/>
+<rect x="420" y="310" width="100" height="28" rx="6" fill="#F1EFE8" stroke="#5F5E5A" stroke-width="0.5"/>
+<text x="470" y="324" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="11">App / service</text>
+<rect x="535" y="310" width="85" height="28" rx="6" fill="#F1EFE8" stroke="#5F5E5A" stroke-width="0.5"/>
+<text x="577" y="324" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="11">Embedded</text>
+
+<!-- SLA bar -->
+<rect x="50" y="352" width="580" height="26" rx="7" fill="#EAF3DE" stroke="#3B6D11" stroke-width="0.5"/>
+<text x="340" y="365" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="12" font-weight="500" fill="#27500A">Uniform SLA: all consumers see the same data with the same freshness guarantee</text>
+</svg>
+<div class="cap">Figure 5 — Serving layer: single query engine for all consumer types.</div>
+</div>
+
+<h3>The [key tradeoff] tradeoff</h3>
+
+<p>Name and explain the explicit tradeoff being made in the serving layer. Examples: freshness vs. simplicity, latency vs. cost, consistency vs. availability. State the tradeoff in one sentence and explain why it is the right call for this system's use cases.</p>
+
+<p>Turn the tradeoff into a contract: "All [data / responses / outputs] are [property] within [bound]." One sentence the whole team can repeat.</p>
+
+<h3>Cost estimate</h3>
+
+<table class="tbl">
+<tr><th>Component</th><th>Current</th><th>3×</th><th>10×</th></tr>
+<tr><td>Serving component A</td><td>~$X/mo</td><td>~$X/mo</td><td>~$X/mo</td></tr>
+<tr><td>Serving component B</td><td>~$X/mo</td><td>~$X/mo</td><td>~$X/mo</td></tr>
+<tr><td>Optional warm-keeping</td><td>~$0–X/mo</td><td>~$0–X/mo</td><td>~$0–X/mo</td></tr>
+<tr><td><strong>Total — Serving</strong></td><td><strong>~$X–Y/mo</strong></td><td><strong>~$X–Y/mo</strong></td><td><strong>~$X–Y/mo</strong></td></tr>
+</table>
+
+<div class="callout blue">
+<div class="ch">Operational burden: Low</div>
+<p>What to monitor. What "good" looks like in metrics. What "degraded" looks like and how to respond.</p>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════
+     6. CROSS-CUTTING CONCERN (Governance / Security / Auth)
+     ══════════════════════════════════════════════════════ -->
+<h2>6. Governance / Security</h2>
+
+<p>Cross-cutting concerns that apply across all layers. These are not a separate "service" — they are embedded in every layer by design.</p>
+
+<h3>Four pillars</h3>
+
+<!-- 4-pillar diagram -->
+<div class="fig">
+<svg width="100%" viewBox="0 0 680 280" xmlns="http://www.w3.org/2000/svg">
+<defs>
+  <marker id="arr6" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+    <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </marker>
+</defs>
+
+<!-- Pillars -->
+<rect x="40" y="20" width="138" height="110" rx="9" fill="#FCEBEB" stroke="#A32D2D" stroke-width="0.5"/>
+<text x="109" y="42" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="13" font-weight="500" fill="#501313">Pillar 1</text>
+<text x="109" y="62" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="11" fill="#791F1F">Tool / service A</text>
+<text x="109" y="80" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="11" fill="#791F1F">Property B</text>
+<text x="109" y="98" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="11" fill="#791F1F">Property C</text>
+<text x="109" y="116" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="11" fill="#791F1F">Property D</text>
+
+<rect x="192" y="20" width="138" height="110" rx="9" fill="#FCEBEB" stroke="#A32D2D" stroke-width="0.5"/>
+<text x="261" y="42" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="13" font-weight="500" fill="#501313">Pillar 2</text>
+<text x="261" y="62" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="11" fill="#791F1F">Tool / service A</text>
+<text x="261" y="80" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="11" fill="#791F1F">Property B</text>
+<text x="261" y="98" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="11" fill="#791F1F">Property C</text>
+<text x="261" y="116" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="11" fill="#791F1F">Property D</text>
+
+<rect x="344" y="20" width="138" height="110" rx="9" fill="#FCEBEB" stroke="#A32D2D" stroke-width="0.5"/>
+<text x="413" y="42" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="13" font-weight="500" fill="#501313">Pillar 3</text>
+<text x="413" y="62" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="11" fill="#791F1F">Tool / service A</text>
+<text x="413" y="80" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="11" fill="#791F1F">Property B</text>
+<text x="413" y="98" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="11" fill="#791F1F">Property C</text>
+<text x="413" y="116" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="11" fill="#791F1F">Property D</text>
+
+<rect x="496" y="20" width="148" height="110" rx="9" fill="#FCEBEB" stroke="#A32D2D" stroke-width="0.5"/>
+<text x="570" y="42" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="13" font-weight="500" fill="#501313">Pillar 4</text>
+<text x="570" y="62" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="11" fill="#791F1F">Tool / service A</text>
+<text x="570" y="80" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="11" fill="#791F1F">Property B</text>
+<text x="570" y="98" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="11" fill="#791F1F">Property C</text>
+<text x="570" y="116" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="11" fill="#791F1F">Property D</text>
+
+<!-- Flow -->
+<text x="40" y="154" font-family="DM Sans,sans-serif" font-size="13" font-weight="500">Sensitive data handling flow</text>
+
+<rect x="40" y="166" width="105" height="38" rx="7" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/>
+<text x="92" y="178" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="11" font-weight="500" fill="#0C447C">Input</text>
+<text x="92" y="195" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="10" fill="#0C447C">sensitive data</text>
+<line x1="145" y1="185" x2="163" y2="185" stroke="#777" stroke-width="0.5" marker-end="url(#arr6)"/>
+
+<rect x="165" y="166" width="120" height="38" rx="7" fill="#FAEEDA" stroke="#854F0B" stroke-width="0.5"/>
+<text x="225" y="178" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="11" font-weight="500" fill="#412402">Step 1</text>
+<text x="225" y="195" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="10" fill="#633806">tag / classify</text>
+<line x1="285" y1="185" x2="303" y2="185" stroke="#777" stroke-width="0.5" marker-end="url(#arr6)"/>
+
+<rect x="305" y="166" width="120" height="38" rx="7" fill="#FAEEDA" stroke="#854F0B" stroke-width="0.5"/>
+<text x="365" y="178" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="11" font-weight="500" fill="#412402">Step 2</text>
+<text x="365" y="195" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="10" fill="#633806">mask / transform</text>
+<line x1="425" y1="185" x2="443" y2="185" stroke="#777" stroke-width="0.5" marker-end="url(#arr6)"/>
+
+<rect x="445" y="166" width="120" height="38" rx="7" fill="#EEEDFE" stroke="#534AB7" stroke-width="0.5"/>
+<text x="505" y="178" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="11" font-weight="500" fill="#26215C">Output</text>
+<text x="505" y="195" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="10" fill="#3C3489">safe for consumer</text>
+
+<!-- Access tiers -->
+<text x="40" y="228" font-family="DM Sans,sans-serif" font-size="13" font-weight="500">Access tiers</text>
+<rect x="40" y="240" width="185" height="32" rx="7" fill="#FCEBEB" stroke="#A32D2D" stroke-width="0.5"/>
+<text x="132" y="252" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="12" font-weight="500" fill="#501313">Tier 1: Full access</text>
+<text x="132" y="265" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="10" fill="#791F1F">admin / privileged roles</text>
+<rect x="240" y="240" width="185" height="32" rx="7" fill="#FAEEDA" stroke="#854F0B" stroke-width="0.5"/>
+<text x="332" y="252" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="12" font-weight="500" fill="#412402">Tier 2: Restricted</text>
+<text x="332" y="265" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="10" fill="#633806">internal users</text>
+<rect x="440" y="240" width="200" height="32" rx="7" fill="#EAF3DE" stroke="#3B6D11" stroke-width="0.5"/>
+<text x="540" y="252" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="12" font-weight="500" fill="#27500A">Tier 3: Aggregates only</text>
+<text x="540" y="265" text-anchor="middle" dominant-baseline="central" font-family="DM Sans,sans-serif" font-size="10" fill="#27500A">external / embedded</text>
+</svg>
+<div class="cap">Figure 6 — Governance: four pillars, data handling flow, and access tiers.</div>
+</div>
+
+<p><strong>Pillar 1 — Name:</strong> Describe the catalog or discovery mechanism. What is the source of truth for what data exists?</p>
+
+<p><strong>Pillar 2 — Name:</strong> Describe sensitive data handling. How is PII or sensitive data tagged, masked, and restricted through each layer?</p>
+
+<p><strong>Pillar 3 — Name:</strong> Describe access control. What system enforces who can see what? How is it tied to identity (SSO/SAML groups)?</p>
+
+<p><strong>Pillar 4 — Name:</strong> Describe encryption and preventive controls. What guardrails prevent non-compliant configurations from being created in the first place?</p>
+
+<div class="callout amber">
+<div class="ch">Compliance requirement</div>
+<p>Name the compliance framework (SOC 2, HIPAA, GDPR, etc.) and state which specific controls this architecture satisfies. Be explicit — "this satisfies [control X] because [mechanism Y]."</p>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════
+     7. TOTAL COST SUMMARY
+     ══════════════════════════════════════════════════════ -->
+<h2>7. Total cost summary</h2>
+
+<p>Infrastructure costs excluding [any exclusions, e.g., SaaS licensing] at three scale tiers. The platform uses serverless and pay-per-use services throughout.</p>
+
+<div class="legend">
+  <span><span class="sw" style="background:#85B7EB"></span>Layer A</span>
+  <span><span class="sw" style="background:#97C459"></span>Layer B</span>
+  <span><span class="sw" style="background:#FAC775"></span>Layer C</span>
+  <span><span class="sw" style="background:#AFA9EC"></span>Serving</span>
+  <span><span class="sw" style="background:#B4B2A9"></span>Orchestration</span>
+  <span><span class="sw" style="background:#F09595"></span>Governance</span>
+</div>
+
+<div class="bar-row">
+  <span class="bl">Current</span>
+  <div class="bw">
+    <div class="bs" style="background:#85B7EB;flex:50;color:#0C447C">$50</div>
+    <div class="bs" style="background:#97C459;flex:10;color:#27500A">$10</div>
+    <div class="bs" style="background:#FAC775;flex:60;color:#633806">$60</div>
+    <div class="bs" style="background:#AFA9EC;flex:10;color:#3C3489">$10</div>
+    <div class="bs" style="background:#B4B2A9;flex:5;color:#2C2C2A"></div>
+    <div class="bs" style="background:#F09595;flex:10;color:#501313">$10</div>
+  </div>
+  <span class="bt">~$145/mo</span>
+</div>
+
+<div class="bar-row">
+  <span class="bl">3× scale</span>
+  <div class="bw">
+    <div class="bs" style="background:#85B7EB;flex:150;color:#0C447C">$150</div>
+    <div class="bs" style="background:#97C459;flex:30;color:#27500A">$30</div>
+    <div class="bs" style="background:#FAC775;flex:180;color:#633806">$180</div>
+    <div class="bs" style="background:#AFA9EC;flex:30;color:#3C3489">$30</div>
+    <div class="bs" style="background:#B4B2A9;flex:15;color:#2C2C2A"></div>
+    <div class="bs" style="background:#F09595;flex:25;color:#501313"></div>
+  </div>
+  <span class="bt">~$415/mo</span>
+</div>
+
+<div class="bar-row">
+  <span class="bl">10× scale</span>
+  <div class="bw">
+    <div class="bs" style="background:#85B7EB;flex:500;color:#0C447C">$500</div>
+    <div class="bs" style="background:#97C459;flex:80;color:#27500A">$80</div>
+    <div class="bs" style="background:#FAC775;flex:600;color:#633806">$600</div>
+    <div class="bs" style="background:#AFA9EC;flex:80;color:#3C3489">$80</div>
+    <div class="bs" style="background:#B4B2A9;flex:30;color:#2C2C2A"></div>
+    <div class="bs" style="background:#F09595;flex:60;color:#501313"></div>
+  </div>
+  <span class="bt">~$1,350/mo</span>
+</div>
+
+<p style="font-size:12px;color:#777;margin-top:14px">Excludes [SaaS tools, licensing]. Includes all infrastructure. [Conditional component] excluded unless [condition] is present.</p>
+
+
+<!-- ══════════════════════════════════════════════════════
+     8. TOOL / VENDOR EVALUATION
+     ══════════════════════════════════════════════════════ -->
+<h2>8. Tool / Vendor Evaluation</h2>
+
+<p>The [component] is a <strong>swappable layer</strong>. All business logic lives in [the core layer], not in the tool. Any tool that speaks [protocol] can connect to [the serving layer] and access the same [data / API / outputs].</p>
+
+<h3>Comparison</h3>
+
+<div class="bi-grid">
+<div class="bh rl"></div>
+<div class="bh">Option A <span class="rec-badge">Recommended</span></div>
+<div class="bh">Option B</div>
+<div class="bh">Option C<br><span style="font-weight:400;font-size:11px;color:#777">(currently in use)</span></div>
+
+<div class="bc rl"><strong>Type</strong></div>
+<div class="bc">SaaS · short description</div>
+<div class="bc">SaaS · short description</div>
+<div class="bc">SaaS · short description</div>
+
+<div class="bc rl"><strong>Criterion 1</strong></div>
+<div class="bc"><span class="pill g">9/10</span> Explanation of score.</div>
+<div class="bc"><span class="pill y">6/10</span> Explanation of score.</div>
+<div class="bc"><span class="pill g">8/10</span> Explanation of score.</div>
+
+<div class="bc rl"><strong>Criterion 2</strong></div>
+<div class="bc"><span class="pill g">Strong</span> Description.</div>
+<div class="bc"><span class="pill g">Strong</span> Description.</div>
+<div class="bc"><span class="pill y">Moderate</span> Description.</div>
+
+<div class="bc rl"><strong>Criterion 3</strong></div>
+<div class="bc"><span class="pill g">Yes</span></div>
+<div class="bc"><span class="pill g">Yes</span></div>
+<div class="bc"><span class="pill r">No</span></div>
+
+<div class="bc rl"><strong>Pricing model</strong></div>
+<div class="bc">Per-seat / per-session / flat</div>
+<div class="bc">Per-seat / per-session / flat</div>
+<div class="bc">Enterprise contract</div>
+
+<div class="bc rl"><strong>10 users</strong></div>
+<div class="bc" style="font-weight:600">~$X/mo</div>
+<div class="bc" style="font-weight:600">~$X/mo</div>
+<div class="bc" style="font-weight:600">~$X/mo*</div>
+
+<div class="bc rl"><strong>50 users</strong></div>
+<div class="bc" style="font-weight:600">~$X/mo</div>
+<div class="bc" style="font-weight:600">~$X/mo</div>
+<div class="bc" style="font-weight:600">~$X/mo*</div>
+
+<div class="bc rl"><strong>Ops burden</strong></div>
+<div class="bc"><span class="pill g">Low</span> SaaS</div>
+<div class="bc"><span class="pill g">Low</span> SaaS</div>
+<div class="bc"><span class="pill g">Low</span> SaaS</div>
+</div>
+
+<p style="font-size:12px;color:#777;margin-top:6px">* [Option C] pricing is enterprise/contract-based. Estimates based on typical annual commitments at these user counts. Current contract terms may differ.</p>
+
+<h3>Analysis</h3>
+
+<p><strong>Option A</strong> scores highest on [criterion] because [reason]. [One specific limitation or consideration for this option.]</p>
+
+<p><strong>Option B</strong> is the lowest-cost option at every scale tier due to [pricing model]. The [tradeoff — e.g., UX, maturity, lock-in] is the main consideration.</p>
+
+<p><strong>On Option C (current):</strong> [Current tool] is already deployed. Two factors to evaluate: first, [cost or capability concern]; second, [architectural compatibility concern]. If retained, [what constraint applies].</p>
+
+<div class="callout amber">
+<div class="ch">Critical rule: keep business logic out of the tool</div>
+<p>No [calculated fields / custom logic / metric definitions] inside the [tool name] that do not also exist in [the authoritative layer]. The moment definitions live in two places, inconsistency returns. One definition, in [location], in version control.</p>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════
+     9. IMPLEMENTATION ROADMAP
+     ══════════════════════════════════════════════════════ -->
+<h2>9. Implementation Roadmap</h2>
+
+<p>This roadmap assumes [key accelerating assumption — e.g., CDK / IaC tooling, existing team skills]. The bottleneck is [what actually takes time — e.g., domain modeling, integration testing], not infrastructure.</p>
+
+<div class="phase">
+  <div class="phase-h">
+    <div class="phase-n" style="background:#ebf2fa;color:#2c5282">1</div>
+    <span class="phase-t">Minimum viable system</span>
+    <span class="phase-d">— Month 1 (Weeks 1–4)</span>
+  </div>
+  <div class="wk">Week 1–2: Foundation</div>
+  <div class="track">
+    <div class="task" style="background:#E6F1FB;color:#0C447C">Infrastructure task A — what it creates / configures</div>
+    <div class="task" style="background:#E6F1FB;color:#0C447C">Infrastructure task B — what it creates / configures</div>
+  </div>
+  <div class="wk">Week 2–3: First integration</div>
+  <div class="track">
+    <div class="task" style="background:#FAEEDA;color:#412402">Integration task A</div>
+    <div class="task" style="background:#FAEEDA;color:#412402">Integration task B</div>
+  </div>
+  <div class="track">
+    <div class="task" style="background:#FAEEDA;color:#412402">Testing / validation task</div>
+    <div class="task" style="background:#B4B2A9;color:#2C2C2A">Orchestration / pipeline task</div>
+  </div>
+  <div class="wk">Week 3–4: First consumers</div>
+  <div class="track">
+    <div class="task" style="background:#EEEDFE;color:#26215C">Consumer-facing task A</div>
+    <div class="task" style="background:#EEEDFE;color:#26215C">Consumer-facing task B</div>
+  </div>
+  <div class="dep"><strong>Dependency:</strong> [What external decision or input is required before this phase can complete, and by when.]</div>
+</div>
+
+<div class="gate">Decision gate 1: Is [core capability] stable and meeting SLA? Are [consumers] engaged? Proceed only with yes on both.</div>
+
+<div class="phase">
+  <div class="phase-h">
+    <div class="phase-n" style="background:#EAF3DE;color:#3B6D11">2</div>
+    <span class="phase-t">Second wave + production hardening</span>
+    <span class="phase-d">— Months 2–3 (Weeks 5–12)</span>
+  </div>
+  <div class="wk">Weeks 5–7: Expand</div>
+  <div class="track">
+    <div class="task" style="background:#E6F1FB;color:#0C447C">Expansion task A (templatized from Phase 1)</div>
+    <div class="task" style="background:#E6F1FB;color:#0C447C">Expansion task B</div>
+  </div>
+  <div class="track">
+    <div class="task" style="background:#FAEEDA;color:#412402">Domain modeling / business logic task</div>
+    <div class="task" style="background:#FCEBEB;color:#501313">Governance / security task</div>
+  </div>
+  <div class="wk">Weeks 8–10: Serving</div>
+  <div class="track">
+    <div class="task" style="background:#EEEDFE;color:#26215C">Consumer integration task A</div>
+    <div class="task" style="background:#EEEDFE;color:#26215C">Consumer integration task B</div>
+  </div>
+  <div class="wk">Weeks 11–12: Harden</div>
+  <div class="track">
+    <div class="task" style="background:#B4B2A9;color:#2C2C2A">Alerting: SLA misses, test failures, cost anomalies → notification channel</div>
+    <div class="task" style="background:#B4B2A9;color:#2C2C2A">Documentation / runbooks published</div>
+  </div>
+  <div class="dep"><strong>Dependency:</strong> [What external system or team input is required. Coordinate on timing.]</div>
+</div>
+
+<div class="gate">Decision gate 2: Is the system delivering value to consumers? Is the architecture viable for production workloads? Evaluate any tool or vendor commitments.</div>
+
+<div class="phase">
+  <div class="phase-h">
+    <div class="phase-n" style="background:#FAEEDA;color:#854F0B">3</div>
+    <span class="phase-t">Scale + advanced capabilities</span>
+    <span class="phase-d">— Month 4+ (Weeks 13–16)</span>
+  </div>
+  <div class="wk">Weeks 13–14: Scale</div>
+  <div class="track">
+    <div class="task" style="background:#E6F1FB;color:#0C447C">Scaling task A</div>
+    <div class="task" style="background:#FAEEDA;color:#412402">Performance optimization task</div>
+  </div>
+  <div class="wk">Weeks 15–16: Advanced capabilities</div>
+  <div class="track">
+    <div class="task" style="background:#EEEDFE;color:#26215C">Advanced feature A</div>
+    <div class="task" style="background:#FCEBEB;color:#501313">Advanced governance / compliance task</div>
+  </div>
+  <div class="dep"><strong>Dependency:</strong> Phase 3 capabilities require specific use cases identified with stakeholders. Do not build speculatively.</div>
+</div>
+
+<div class="gate">Decision gate 3: Which specific use cases justify Phase 3 investment? Evaluate managed alternatives if complexity approaches team capacity.</div>
+
+
+<!-- ══════════════════════════════════════════════════════
+     10. KEY ARCHITECTURAL DECISIONS
+     ══════════════════════════════════════════════════════ -->
+<h2>10. Key Architectural Decisions</h2>
+
+<p>Decisions in this document where reasonable architects would disagree. Surfaced explicitly for leadership review.</p>
+
+<h3>Decision 1: [Name of decision]</h3>
+
+<p>State the decision made and the main alternative. Quantify the tradeoff if possible (cost difference, latency difference, operational overhead). Explain why the chosen option is right for this system at this scale. Name the signal that would trigger a revisit.</p>
+
+<h3>Decision 2: [Name of decision]</h3>
+
+<p>State the decision made and why an earlier or simpler approach was rejected. What property did this decision sacrifice and why is that the right tradeoff?</p>
+
+<h3>Decision 3: [Name of decision]</h3>
+
+<p>State the decision made. Note if this is reversible (preferred) or irreversible (flag clearly). Explain what makes it reversible, or what migration path exists if the decision needs to change.</p>
+
+<h3>Decision 4: [Name of decision]</h3>
+
+<p>State the tradeoff explicitly as a sentence: "This architecture trades [X] for [Y]." Then explain why that is the right tradeoff for this system's use cases, team size, and timeline.</p>
+
+<h3>Decisions deferred</h3>
+
+<p><strong>[Topic A]:</strong> [When it will be decided and what information is needed to decide it.]</p>
+
+<p><strong>[Topic B]:</strong> [When it will be decided and what information is needed to decide it.]</p>
+
+<p><strong>[Topic C]:</strong> [Evaluate at Decision gate X if condition Y is met. Until then, current approach handles the workload.]</p>
+
+
+<!-- ══════════════════════════════════════════════════════
+     11. RISKS AND MITIGATIONS
+     ══════════════════════════════════════════════════════ -->
+<h2>11. Risks and Mitigations</h2>
+
+<table class="tbl">
+<tr><th>Risk</th><th>Impact</th><th>Mitigation</th></tr>
+<tr>
+  <td><strong>Risk 1 — Short name</strong></td>
+  <td>Describe what goes wrong and when. Be specific about the failure mode.</td>
+  <td>Concrete mitigation steps. Name the specific alert, process, or guardrail that catches this.</td>
+</tr>
+<tr>
+  <td><strong>Risk 2 — Short name</strong></td>
+  <td>Describe what goes wrong and when.</td>
+  <td>Concrete mitigation steps. Include any one-time setup vs. ongoing process.</td>
+</tr>
+<tr>
+  <td><strong>Risk 3 — Short name</strong></td>
+  <td>Describe what goes wrong and when.</td>
+  <td>Concrete mitigation steps.</td>
+</tr>
+<tr>
+  <td><strong>Risk 4 — Cost overrun</strong></td>
+  <td>Ad-hoc or poorly optimized workloads inflate costs beyond projections.</td>
+  <td>Cost alerts at [service]. Monthly review comparing actual vs. estimated. Usage attribution to specific consumers/teams.</td>
+</tr>
+<tr>
+  <td><strong>Risk 5 — Key-person dependency</strong></td>
+  <td>Only one person understands the full system.</td>
+  <td>All infrastructure as code (reproducible). All logic version-controlled (documented). Runbooks for every operational procedure. Pair during build phases.</td>
+</tr>
+<tr>
+  <td><strong>Risk 6 — Silent failure</strong></td>
+  <td>A component fails and no one notices until a downstream consumer is affected.</td>
+  <td>Freshness / health monitoring with alerts when expected output hasn't arrived within SLA window. DLQ depth monitoring. End-to-end smoke tests on a schedule.</td>
+</tr>
+</table>
+
+<h3>Definition of Done for a [component / feature]</h3>
+
+<p>A [component] is considered production-ready when all of the following are met:</p>
+
+<table class="tbl">
+<tr><th>#</th><th>Criterion</th></tr>
+<tr><td>1</td><td>Source contract agreed and versioned — inputs, schema, SLA, and owner documented.</td></tr>
+<tr><td>2</td><td>Error handling in place: DLQ, retry logic, and idempotent replay supported.</td></tr>
+<tr><td>3</td><td>Data / output is immutable or auditable via logging.</td></tr>
+<tr><td>4</td><td>Tests pass: correctness, edge cases, and custom business rules.</td></tr>
+<tr><td>5</td><td>Access control applied — correct permissions for each consumer tier.</td></tr>
+<tr><td>6</td><td>Documentation complete — inputs, outputs, schema, lineage, and runbook visible to the team.</td></tr>
+<tr><td>7</td><td>SLA/SLO documented — expected freshness/latency, acceptable downtime, escalation path.</td></tr>
+<tr><td>8</td><td>Monitoring in place — failure alerts, freshness alerts, cost alerts.</td></tr>
+<tr><td>9</td><td>Runbook published — how to diagnose, recover, and replay without creating duplicates.</td></tr>
+</table>
+
+
+<!-- ══════════════════════════════════════════════════════
+     12. PRIOR PROPOSALS / REJECTED APPROACHES
+     ══════════════════════════════════════════════════════ -->
+<h2>12. Prior Proposals — Decisions Reviewed and Not Adopted</h2>
+
+<p>This architecture was informed by [prior proposal or earlier version]. Several elements were considered and intentionally not carried forward. This section documents those decisions for transparency and future reference.</p>
+
+<h3>[Feature / service / approach] — not adopted</h3>
+
+<p>The prior proposal used [X] for [purpose]. [X] is a [description of what it does and what class of problem it solves].</p>
+
+<p><strong>Why not adopted:</strong> [Specific reason — complexity, cost, overkill for current scale, overlap with something already in the design.] <strong>Revisit when:</strong> [Specific condition that would change the calculus — team size, scale, organizational structure.]</p>
+
+<h3>[Feature / service / approach] — not adopted as default</h3>
+
+<p>The prior proposal used [Y] for [purpose].</p>
+
+<p><strong>Why not adopted as default:</strong> [Reason — overlap with chosen approach, operational overhead, or scope.] <strong>When to use:</strong> [Specific scenario where this tool would be the right call within the current architecture.]</p>
+
+<h3>[Feature / service / approach] — not in scope</h3>
+
+<p>The prior proposal included [Z]. Per the stated non-goals of this engagement, [Z] is excluded. The current architecture does not preclude adding [Z] in the future — it would be an additional consumer or capability, not an architectural change.</p>
+
+
+<!-- ══════════════════════════════════════════════════════
+     13. DESIGN DIFFERENTIATION
+     ══════════════════════════════════════════════════════ -->
+<h2>13. Design Differentiation from Prior Proposal</h2>
+
+<p>This section documents where this architecture makes fundamentally different choices from the prior proposal, and the reasoning.</p>
+
+<h3>[Approach A] over [Approach B] for [concern]</h3>
+
+<p>The prior proposal used [approach B]. This is the largest philosophical divergence between the two designs.</p>
+
+<p><strong>Why we chose [approach A]:</strong> [Specific capabilities or properties that matter at this scale and team size. Quantify if possible: "At X scale, [approach B] requires Y overhead; [approach A] provides the same outcome for Z cost."] When [growth condition], the architecture supports adding [approach B] as a [pre-processing step / additional component] without re-architecture.</p>
+
+<h3>[Unified approach] over [dual-path ambiguity]</h3>
+
+<p>The prior proposal presented [two approaches] as co-equal without designating a primary or clarifying when to use each.</p>
+
+<p><strong>Why we chose a single primary:</strong> Operational simplicity for a [N]-person team requires a clear default. [Chosen approach] is that primary — it handles [use case A], [use case B], and [use case C]. One system to monitor, tune, and troubleshoot. [Alternative] remains available for [specific scenario] but is not in the critical path for any production workload.</p>
+
+<h3>[Agnostic architecture] over [tool lock-in]</h3>
+
+<p>The prior proposal built the architecture around a specific [tool / vendor] and its specific requirements.</p>
+
+<p><strong>Why we chose tool-agnosticism:</strong> [Specific concern that motivated this — cost, capability gap, strategic flexibility.] All [business logic / metric definitions / rules] live in [canonical location] (version-controlled, portable), and the [tool] is a thin layer that connects via [standard protocol]. This means the team can evaluate, switch, or supplement the [tool] without re-architecture.</p>
+
+<h3>Phased implementation with decision gates over sequential phases</h3>
+
+<p>The prior proposal defined N phases with acceptance criteria but no explicit decision gates or timelines.</p>
+
+<p><strong>Why we chose decision-gated phases:</strong> A team cannot commit to a multi-phase roadmap without checkpoints. Each gate includes specific evaluation criteria — [example criteria] — that tie technical milestones to business outcomes. [Acceleration tool / approach] compresses infrastructure provisioning, making the timeline realistic rather than aspirational.</p>
+
+</body>
+</html>
