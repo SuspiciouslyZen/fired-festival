@@ -100,6 +100,13 @@
     .dot-warn { background: var(--yellow); }
     .dot-unavailable { background: var(--red); }
 
+    .state-toggle { display: flex; border-radius: 3px; overflow: hidden; border: 1px solid var(--border); width: fit-content; }
+    .state-btn { padding: 3px 10px; font-size: 10px; font-weight: 700; letter-spacing: 0.5px; cursor: pointer; border: none; font-family: inherit; transition: all 0.15s; }
+    .state-btn-failed { background: var(--surface2); color: var(--muted); }
+    .state-btn-failed.active { background: var(--red-bg); color: var(--red); }
+    .state-btn-stable { background: var(--surface2); color: var(--muted); }
+    .state-btn-stable.active { background: var(--green-bg); color: var(--green); }
+
     .custom-card .card-body { display: flex; flex-direction: column; gap: 10px; }
     label { font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); display: block; margin-bottom: 4px; }
     input, select, textarea {
@@ -163,7 +170,7 @@
     {
       label: 'CPU Spike',
       scenario: 'The web-api service is maxed out — CPU at 94%, latency through the roof, auto-scaling exhausted. The agent will diagnose resource exhaustion and attempt remediation.',
-      expect: 'Resolved — agent diagnoses and remediates',
+      expect: 'COMPLETED — agent calls check_status → read_logs → restart_service → check_status confirms healthy',
       expectClass: 'expect-pass',
       service: 'web-api',
       severity: 'high',
@@ -196,7 +203,7 @@
     {
       label: 'Hung Query',
       scenario: 'A query has been running for over an hour on the primary Postgres database, consuming nearly all connections. The agent will read logs, identify the blocking query, and plan remediation.',
-      expect: 'Escalated — kill_query requires human approval',
+      expect: 'AWAITING_HUMAN — agent attempts kill_query, blocked by guardrail, escalated for human approval',
       expectClass: 'expect-fail',
       service: 'postgres',
       severity: 'high',
@@ -230,7 +237,7 @@
     {
       label: 'Unknown Service',
       scenario: 'This alert references billing-v3, a service the harness does not recognize. CP1 (alert validation) should reject it immediately because the service is not in the known services list.',
-      expect: 'Fails at CP1 — unknown service rejected by guardrails',
+      expect: 'FAILED at CP1 — billing-v3 not in allowed services list, rejected before agent is invoked',
       expectClass: 'expect-fail',
       service: 'billing-v3',
       severity: 'critical',
@@ -359,6 +366,7 @@
       if (status === 'COMPLETED') {
         msg = `Resolved · ${runLink}`;
         showToast(`${payload.service}: Incident resolved`, 'completed');
+        if (cardId.startsWith('fixture-')) setState(cardId, 'stable');
       } else if (status === 'AWAITING_HUMAN') {
         msg = `Escalated — awaiting human · ${runLink}`;
         showToast(`${payload.service}: Escalated — requires human decision`, 'awaiting');
@@ -393,6 +401,13 @@
           <div class="card-label">${f.label}</div>
           <div class="card-scenario">${f.scenario}</div>
           <div class="card-expect ${f.expectClass}">${f.expect}</div>
+          <div style="display:flex;align-items:center;gap:8px;margin-top:4px">
+            <span style="font-size:10px;color:var(--muted);letter-spacing:0.5px">SERVICE STATE</span>
+            <div class="state-toggle">
+              <button class="state-btn state-btn-failed active" id="state-${id}-failed" onclick="setState('${id}', 'failed')">FAILED</button>
+              <button class="state-btn state-btn-stable" id="state-${id}-stable" onclick="setState('${id}', 'stable')">STABLE</button>
+            </div>
+          </div>
           <details class="card-alert-detail">
             <summary>Alert payload</summary>
             <div class="alert-body">
@@ -409,8 +424,20 @@
       </div>`;
   }
 
+  function setState(id, value) {
+    document.getElementById(`state-${id}-failed`).classList.toggle('active', value === 'failed');
+    document.getElementById(`state-${id}-stable`).classList.toggle('active', value === 'stable');
+  }
+
+  function getState(id) {
+    return document.getElementById(`state-${id}-failed`).classList.contains('active') ? 'failed' : 'stable';
+  }
+
   function triggerFixture(idx) {
-    trigger(FIXTURES[idx], 'fixture-' + idx);
+    const id = 'fixture-' + idx;
+    const f = FIXTURES[idx];
+    const payload = { ...f, metadata: { ...f.metadata, _initial_state: getState(id) } };
+    trigger(payload, id);
   }
 
   const CUSTOM_TEMPLATE_2 = JSON.stringify({
@@ -437,7 +464,8 @@
       dlq_depth: 2109,
       drain_estimate_s: 22920,
       region: "us-east-1",
-      team: "platform"
+      team: "platform",
+      _initial_state: "failed"
     }
   }, null, 2);
 
@@ -498,7 +526,8 @@
       client_limit: 3000,
       latency_p99_ms: 94,
       region: "us-east-1",
-      team: "platform"
+      team: "platform",
+      _initial_state: "failed"
     }
   }, null, 2);
 

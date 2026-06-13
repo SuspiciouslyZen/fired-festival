@@ -146,6 +146,7 @@ class HarnessLoop:
         diagnosis: dict | None = None
         cp2_evaluated = False
         cp3_evaluated = False
+        remediation_idx: int | None = None
         turn = 0
         total_tokens = 0
 
@@ -170,10 +171,11 @@ class HarnessLoop:
             })
 
             if not response.tool_calls:
-                messages.append({
-                    "role": "user",
-                    "content": "Use the available tools to continue diagnosing and remediating the incident.",
-                })
+                if remediation_idx is None:
+                    prompt = "Call check_status and read_logs to gather data, then call the appropriate remediation tool."
+                else:
+                    prompt = f"Call check_status on '{alert.service}' to verify the service has recovered."
+                messages.append({"role": "user", "content": prompt})
                 continue
 
             # ---- Execute tool calls ----
@@ -214,6 +216,18 @@ class HarnessLoop:
             remediation_idx = next(
                 (i for i, a in enumerate(actions_taken) if a["tool"] in REMEDIATION_TOOLS), None
             )
+
+            # After remediation fires, demand a verification check_status — don't let the agent wander
+            just_remediated = (
+                remediation_idx is not None
+                and actions_taken[-1]["tool"] in REMEDIATION_TOOLS
+            )
+            if just_remediated:
+                messages.append({
+                    "role": "user",
+                    "content": f"Remediation executed. Call check_status on '{alert.service}' now to verify recovery.",
+                })
+                continue
 
             # CP2: synthesize diagnosis from actual tool outputs (once, as soon as we have data)
             if not cp2_evaluated and tools_called & DATA_TOOLS:

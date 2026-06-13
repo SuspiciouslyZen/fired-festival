@@ -64,11 +64,14 @@ def _build_agent(agent_type: str, model: str | None = None):
     elif agent_type == "openai":
         from src.agents.openai_agent import OpenAIAgent
         return OpenAIAgent()
+    elif agent_type == "openrouter":
+        from src.agents.openrouter_agent import OpenRouterAgent
+        return OpenRouterAgent(model=model or None)
     elif agent_type == "mock":
         from src.agents.mock_agent import MockAgent
         return MockAgent()
     else:
-        raise ValueError(f"Unknown agent_type '{agent_type}'. Valid: ollama, claude, openai, mock")
+        raise ValueError(f"Unknown agent_type '{agent_type}'. Valid: ollama, claude, openai, openrouter, mock")
 
 
 class RunRequest(BaseModel):
@@ -77,7 +80,7 @@ class RunRequest(BaseModel):
     description: str
     source: str = "api"
     metadata: dict = {}
-    agent_type: str = os.environ.get("AGENT_TYPE", "ollama")
+    agent_type: str = os.environ.get("AGENT_TYPE", "openrouter")
     model: str | None = None
 
 
@@ -85,7 +88,7 @@ class ReplayRequest(BaseModel):
     run_id: str
     replay_from: str
     alert: dict
-    agent_type: str = os.environ.get("AGENT_TYPE", "ollama")
+    agent_type: str = os.environ.get("AGENT_TYPE", "openrouter")
 
 
 @app.get("/")
@@ -150,6 +153,17 @@ async def list_agents():
         "status": "ready" if has_openai_key else "OPENAI_API_KEY not set",
     })
 
+    # OpenRouter — check for API key
+    openrouter_model = os.environ.get("OPENROUTER_MODEL", "openrouter/free")
+    has_openrouter_key = bool(os.environ.get("OPENROUTER_API_KEY"))
+    agents.append({
+        "id": "openrouter",
+        "label": f"OpenRouter — {openrouter_model}",
+        "model": openrouter_model,
+        "available": has_openrouter_key,
+        "status": "ready" if has_openrouter_key else "OPENROUTER_API_KEY not set",
+    })
+
     # Mock — always available
     agents.append({
         "id": "mock",
@@ -159,7 +173,7 @@ async def list_agents():
         "status": "ready",
     })
 
-    return {"agents": agents, "default": os.environ.get("AGENT_TYPE", "ollama")}
+    return {"agents": agents, "default": os.environ.get("AGENT_TYPE", "openrouter")}
 
 
 @app.get("/runs")
@@ -180,7 +194,8 @@ async def run_harness(request: RunRequest):
         raise HTTPException(status_code=400, detail=str(e))
 
     try:
-        registry = create_registry(_guardrails)
+        initial_state = request.metadata.get("_initial_state", "failed")
+        registry = create_registry(_guardrails, service=alert.service, initial_state=initial_state)
         loop = HarnessLoop(agent=agent, guardrails=_guardrails, store=_store, registry=registry)
         result = await loop.run(alert)
         return result
