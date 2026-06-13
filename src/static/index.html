@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ops Harness — Dashboard</title>
+  <style>
+    :root {
+      --bg: #0d1117;
+      --surface: #161b22;
+      --surface2: #1c2128;
+      --border: #30363d;
+      --text: #e6edf3;
+      --muted: #8b949e;
+      --green: #3fb950;
+      --green-bg: #0d2e1a;
+      --red: #f85149;
+      --red-bg: #2d0e0e;
+      --yellow: #e3b341;
+      --yellow-bg: #2d1f00;
+      --blue: #58a6ff;
+      --blue-bg: #0d1e36;
+      --accent: #1f6feb;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: 'SF Mono', 'Cascadia Code', 'Fira Code', monospace; font-size: 12px; min-height: 100vh; }
+
+    nav {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 20px; background: var(--surface); border-bottom: 1px solid var(--border);
+      position: sticky; top: 0; z-index: 10;
+    }
+    nav .logo { font-size: 14px; font-weight: 700; letter-spacing: 2px; color: var(--text); }
+    nav .logo span { color: var(--accent); }
+    nav a { color: var(--muted); text-decoration: none; font-size: 11px; letter-spacing: 1px; padding: 5px 12px; border: 1px solid var(--border); border-radius: 4px; transition: all 0.15s; }
+    nav a:hover { color: var(--text); border-color: var(--accent); }
+    nav .pulse { width: 8px; height: 8px; border-radius: 50%; background: var(--green); display: inline-block; margin-right: 8px; animation: pulse 2s infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+    .stats-bar {
+      display: grid; grid-template-columns: repeat(5, 1fr); gap: 1px;
+      background: var(--border); border-bottom: 1px solid var(--border);
+    }
+    .stat {
+      background: var(--surface); padding: 14px 20px;
+    }
+    .stat-label { color: var(--muted); font-size: 10px; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 4px; }
+    .stat-value { font-size: 22px; font-weight: 700; }
+    .stat-value.green { color: var(--green); }
+    .stat-value.red { color: var(--red); }
+    .stat-value.yellow { color: var(--yellow); }
+    .stat-value.blue { color: var(--blue); }
+
+    .main { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 16px; }
+
+    .panel {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 6px; overflow: hidden;
+    }
+    .panel-header {
+      padding: 10px 16px; background: var(--surface2); border-bottom: 1px solid var(--border);
+      font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .panel-body { padding: 0; max-height: 320px; overflow-y: auto; }
+    .panel-body::-webkit-scrollbar { width: 4px; }
+    .panel-body::-webkit-scrollbar-thumb { background: var(--border); }
+
+    .run-row {
+      display: grid; grid-template-columns: auto 1fr auto auto; gap: 12px; align-items: center;
+      padding: 10px 16px; border-bottom: 1px solid var(--border); transition: background 0.1s;
+    }
+    .run-row:last-child { border-bottom: none; }
+    .run-row:hover { background: var(--surface2); }
+    .run-service { font-weight: 600; color: var(--text); }
+    .run-id { color: var(--muted); font-size: 10px; }
+    .run-time { color: var(--muted); font-size: 10px; white-space: nowrap; }
+    .run-actions { color: var(--muted); font-size: 10px; }
+
+    .badge {
+      padding: 2px 8px; border-radius: 3px; font-size: 10px; font-weight: 600;
+      letter-spacing: 0.5px; white-space: nowrap;
+    }
+    .badge-COMPLETED { background: var(--green-bg); color: var(--green); border: 1px solid #1a4731; }
+    .badge-FAILED { background: var(--red-bg); color: var(--red); border: 1px solid #4a1a1a; }
+    .badge-AWAITING_HUMAN { background: var(--yellow-bg); color: var(--yellow); border: 1px solid #3d2f00; }
+    .badge-RUNNING { background: var(--blue-bg); color: var(--blue); border: 1px solid #1a3a6a; }
+    .badge-ESCALATED { background: var(--red-bg); color: var(--red); border: 1px solid #4a1a1a; }
+
+    .sev-CRITICAL { color: var(--red); }
+    .sev-WARNING { color: var(--yellow); }
+    .sev-INFO { color: var(--blue); }
+
+    .alarm-row {
+      display: flex; align-items: flex-start; gap: 10px;
+      padding: 10px 16px; border-bottom: 1px solid var(--border);
+    }
+    .alarm-row:last-child { border-bottom: none; }
+    .alarm-row:hover { background: var(--surface2); }
+    .alarm-type { font-weight: 600; flex: 1; }
+    .alarm-time { color: var(--muted); font-size: 10px; white-space: nowrap; }
+    .alarm-dot { width: 6px; height: 6px; border-radius: 50%; margin-top: 4px; flex-shrink: 0; }
+    .alarm-dot-CRITICAL { background: var(--red); }
+    .alarm-dot-WARNING { background: var(--yellow); }
+    .alarm-dot-INFO { background: var(--blue); }
+
+    .cp-row { padding: 10px 16px; border-bottom: 1px solid var(--border); }
+    .cp-row:last-child { border-bottom: none; }
+    .cp-label { display: flex; justify-content: space-between; margin-bottom: 5px; }
+    .cp-name { color: var(--text); font-weight: 600; }
+    .cp-pct { color: var(--muted); }
+    .cp-bar-track { background: var(--surface2); border-radius: 2px; height: 6px; }
+    .cp-bar-fill { height: 6px; border-radius: 2px; transition: width 0.3s; background: var(--green); }
+    .cp-bar-fill.low { background: var(--red); }
+    .cp-bar-fill.mid { background: var(--yellow); }
+    .cp-counts { color: var(--muted); font-size: 10px; margin-top: 3px; }
+
+    .hitl-row {
+      padding: 12px 16px; border-bottom: 1px solid var(--border);
+    }
+    .hitl-row:last-child { border-bottom: none; }
+    .hitl-run-id { color: var(--muted); font-size: 10px; margin-bottom: 6px; }
+    .hitl-reason { color: var(--text); margin-bottom: 10px; font-size: 11px; line-height: 1.4; }
+    .hitl-actions { display: flex; gap: 8px; }
+    .btn { padding: 5px 14px; border-radius: 4px; border: 1px solid; font-family: inherit; font-size: 11px; cursor: pointer; font-weight: 600; letter-spacing: 0.5px; transition: all 0.15s; }
+    .btn-approve { background: var(--green-bg); color: var(--green); border-color: #1a4731; }
+    .btn-approve:hover { background: #1a4731; }
+    .btn-reject { background: var(--red-bg); color: var(--red); border-color: #4a1a1a; }
+    .btn-reject:hover { background: #3a1a1a; }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .empty { padding: 24px 16px; color: var(--muted); text-align: center; font-size: 11px; }
+
+    .last-updated { color: var(--muted); font-size: 10px; }
+  </style>
+</head>
+<body>
+
+<nav>
+  <div class="logo"><span>OPS</span> HARNESS</div>
+  <div style="display:flex;align-items:center;gap:16px">
+    <span class="last-updated" id="last-updated">—</span>
+    <a href="/static/trigger.html">FIRE ALERT</a>
+  </div>
+</nav>
+
+<div class="stats-bar" id="stats-bar">
+  <div class="stat"><div class="stat-label">Total Runs</div><div class="stat-value" id="s-total">—</div></div>
+  <div class="stat"><div class="stat-label">Completed</div><div class="stat-value green" id="s-completed">—</div></div>
+  <div class="stat"><div class="stat-label">Failed</div><div class="stat-value red" id="s-failed">—</div></div>
+  <div class="stat"><div class="stat-label">Awaiting</div><div class="stat-value yellow" id="s-awaiting">—</div></div>
+  <div class="stat"><div class="stat-label">Avg Tokens</div><div class="stat-value blue" id="s-tokens">—</div></div>
+</div>
+
+<div class="main">
+  <div class="panel">
+    <div class="panel-header">
+      <span>Run Feed</span>
+      <span class="pulse"></span>
+    </div>
+    <div class="panel-body" id="run-feed"><div class="empty">No runs yet</div></div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-header"><span>Alarm Stream</span></div>
+    <div class="panel-body" id="alarm-stream"><div class="empty">No alarms</div></div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-header"><span>Checkpoint Health</span></div>
+    <div class="panel-body" id="checkpoint-health"><div class="empty">No checkpoint data</div></div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-header"><span>HITL Queue</span></div>
+    <div class="panel-body" id="hitl-queue"><div class="empty">Queue is empty</div></div>
+  </div>
+</div>
+
+<script>
+  const STAGES = ['CP1_ALERT_PARSED', 'CP2_HYPOTHESIS_FORMED', 'CP3_PLAN_VALIDATED', 'CP4_HEALTH_CHECK'];
+  const STAGE_LABELS = { CP1_ALERT_PARSED: 'CP1 Alert Parsed', CP2_HYPOTHESIS_FORMED: 'CP2 Hypothesis', CP3_PLAN_VALIDATED: 'CP3 Plan Validated', CP4_HEALTH_CHECK: 'CP4 Health Check' };
+
+  function timeAgo(ts) {
+    if (!ts) return '—';
+    const diff = (Date.now() - new Date(ts)) / 1000;
+    if (diff < 60) return `${Math.floor(diff)}s ago`;
+    if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+    return `${Math.floor(diff / 3600)}h ago`;
+  }
+
+  function badge(status) {
+    return `<span class="badge badge-${status}">${status.replace('_', ' ')}</span>`;
+  }
+
+  function getService(run) {
+    const r = run.result;
+    if (r && r.report && r.report.alert && r.report.alert.service) return r.report.alert.service;
+    return run.alert_id ? run.alert_id.slice(0, 8) : '—';
+  }
+
+  function getTokens(run) {
+    const r = run.result;
+    if (!r) return null;
+    if (r.report && r.report.metrics_after && r.report.metrics_after.total_tokens) return r.report.metrics_after.total_tokens;
+    return null;
+  }
+
+  function getAlarms(runs) {
+    const all = [];
+    runs.forEach(run => {
+      const r = run.result;
+      if (r && r.alarms) r.alarms.forEach(a => all.push({ ...a, run_id: run.run_id }));
+    });
+    all.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    return all;
+  }
+
+  function getCheckpoints(runs) {
+    const counts = {};
+    STAGES.forEach(s => counts[s] = { pass: 0, fail: 0 });
+    runs.forEach(run => {
+      const r = run.result;
+      if (r && r.checkpoints) {
+        r.checkpoints.forEach(cp => {
+          if (counts[cp.stage]) {
+            if (cp.passed) counts[cp.stage].pass++;
+            else counts[cp.stage].fail++;
+          }
+        });
+      }
+    });
+    return counts;
+  }
+
+  async function escalate(run_id, decision) {
+    const btns = document.querySelectorAll(`[data-run="${run_id}"]`);
+    btns.forEach(b => b.disabled = true);
+    await fetch(`/runs/${run_id}/escalation`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ decision, reason: `Manual ${decision} via dashboard` })
+    });
+    refresh();
+  }
+
+  async function refresh() {
+    let runs;
+    try {
+      const res = await fetch('/runs?limit=50');
+      runs = await res.json();
+    } catch (e) {
+      return;
+    }
+
+    // Stats
+    const total = runs.length;
+    const completed = runs.filter(r => r.status === 'COMPLETED').length;
+    const failed = runs.filter(r => r.status === 'FAILED').length;
+    const awaiting = runs.filter(r => r.status === 'AWAITING_HUMAN').length;
+    document.getElementById('s-total').textContent = total;
+    document.getElementById('s-completed').textContent = completed;
+    document.getElementById('s-failed').textContent = failed;
+    document.getElementById('s-awaiting').textContent = awaiting;
+    document.getElementById('last-updated').textContent = 'updated ' + timeAgo(new Date().toISOString());
+
+    // Run feed
+    const feedEl = document.getElementById('run-feed');
+    if (!runs.length) {
+      feedEl.innerHTML = '<div class="empty">No runs yet</div>';
+    } else {
+      feedEl.innerHTML = runs.map(run => {
+        const svc = getService(run);
+        const actions = run.result && run.result.report && run.result.report.actions_taken ? run.result.report.actions_taken.length : '';
+        return `<div class="run-row">
+          ${badge(run.status)}
+          <div>
+            <div class="run-service">${svc}</div>
+            <div class="run-id">${run.run_id.slice(0, 12)}…</div>
+          </div>
+          <div class="run-time">${timeAgo(run.started_at)}</div>
+          <div class="run-actions">${actions ? actions + ' actions' : ''}</div>
+        </div>`;
+      }).join('');
+    }
+
+    // Alarm stream
+    const alarms = getAlarms(runs);
+    const alarmEl = document.getElementById('alarm-stream');
+    if (!alarms.length) {
+      alarmEl.innerHTML = '<div class="empty">No alarms</div>';
+    } else {
+      alarmEl.innerHTML = alarms.slice(0, 30).map(a => `
+        <div class="alarm-row">
+          <div class="alarm-dot alarm-dot-${a.severity}"></div>
+          <div style="flex:1">
+            <div class="alarm-type sev-${a.severity}">${a.type}</div>
+            <div style="color:var(--muted);font-size:10px">${a.run_id ? a.run_id.slice(0,8) + '…' : ''}</div>
+          </div>
+          <div class="alarm-time">${timeAgo(a.timestamp)}</div>
+        </div>`).join('');
+    }
+
+    // Checkpoint health
+    const cpData = getCheckpoints(runs);
+    const cpEl = document.getElementById('checkpoint-health');
+    const hasAny = STAGES.some(s => cpData[s].pass + cpData[s].fail > 0);
+    if (!hasAny) {
+      cpEl.innerHTML = '<div class="empty">No checkpoint data</div>';
+    } else {
+      cpEl.innerHTML = STAGES.map(stage => {
+        const d = cpData[stage];
+        const total = d.pass + d.fail;
+        const pct = total ? Math.round(d.pass / total * 100) : 0;
+        const cls = pct >= 80 ? '' : pct >= 50 ? 'mid' : 'low';
+        return `<div class="cp-row">
+          <div class="cp-label">
+            <span class="cp-name">${STAGE_LABELS[stage]}</span>
+            <span class="cp-pct">${pct}%</span>
+          </div>
+          <div class="cp-bar-track"><div class="cp-bar-fill ${cls}" style="width:${pct}%"></div></div>
+          <div class="cp-counts">${d.pass} passed · ${d.fail} failed · ${total} total</div>
+        </div>`;
+      }).join('');
+    }
+
+    // HITL queue
+    const hitlRuns = runs.filter(r => r.status === 'AWAITING_HUMAN');
+    const hitlEl = document.getElementById('hitl-queue');
+    if (!hitlRuns.length) {
+      hitlEl.innerHTML = '<div class="empty">Queue is empty</div>';
+    } else {
+      hitlEl.innerHTML = hitlRuns.map(run => {
+        const svc = getService(run);
+        const escalation = run.result && run.result.escalation;
+        const reason = escalation ? escalation.reason : 'Escalated — requires human decision';
+        return `<div class="hitl-row">
+          <div class="hitl-run-id">${svc} · ${run.run_id.slice(0, 12)}… · ${timeAgo(run.started_at)}</div>
+          <div class="hitl-reason">${reason}</div>
+          <div class="hitl-actions">
+            <button class="btn btn-approve" data-run="${run.run_id}" onclick="escalate('${run.run_id}','approve')">Approve</button>
+            <button class="btn btn-reject" data-run="${run.run_id}" onclick="escalate('${run.run_id}','reject')">Reject</button>
+          </div>
+        </div>`;
+      }).join('');
+    }
+  }
+
+  refresh();
+  setInterval(refresh, 3000);
+</script>
+</body>
+</html>

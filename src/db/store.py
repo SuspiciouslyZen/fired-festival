@@ -114,6 +114,21 @@ class CheckpointStore:
         row = await cursor.fetchone()
         return json.loads(row[0]) if row else None
 
+    async def list_runs(self, limit: int = 50) -> list[dict]:
+        cursor = await self.db.execute(
+            "SELECT run_id, alert_id, status, started_at, completed_at, result_json FROM runs ORDER BY started_at DESC LIMIT ?",
+            (limit,),
+        )
+        rows = await cursor.fetchall()
+        return [
+            {
+                "run_id": r[0], "alert_id": r[1], "status": r[2],
+                "started_at": r[3], "completed_at": r[4],
+                "result": json.loads(r[5]) if r[5] else None,
+            }
+            for r in rows
+        ]
+
     async def get_run(self, run_id: str) -> dict | None:
         cursor = await self.db.execute(
             "SELECT run_id, alert_id, status, started_at, completed_at, result_json FROM runs WHERE run_id = ?",

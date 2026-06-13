@@ -12,6 +12,8 @@ Endpoints:
 import os
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import RedirectResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from src.harness.guardrails import GuardrailEngine
@@ -44,6 +46,10 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+_static_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "src", "static")
+if os.path.isdir(_static_dir):
+    app.mount("/static", StaticFiles(directory=_static_dir), name="static")
+
 
 def _get_agent():
     """Create the configured agent. Defaults to Claude, falls back to mock."""
@@ -75,9 +81,19 @@ class ReplayRequest(BaseModel):
     alert: dict
 
 
+@app.get("/")
+async def root():
+    return RedirectResponse(url="/static/index.html")
+
+
 @app.get("/health")
 async def health():
     return {"status": "ok", "service": "ops-runbook-harness"}
+
+
+@app.get("/runs")
+async def list_runs(limit: int = 50):
+    return await _store.list_runs(limit=min(limit, 100))
 
 
 @app.post("/run")

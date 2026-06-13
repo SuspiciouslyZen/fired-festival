@@ -36,7 +36,7 @@ After all units: run `pytest tests/ -v` to confirm the full suite passes.
 
 ## Next steps (post-core, hackathon priority order)
 
-### U12 — Datadog instrumentation (~20 min Claude time)
+### [x] U12 — Datadog instrumentation (~20 min Claude time)
 **Files:** `src/harness/metrics.py`, edits to `src/harness/loop.py`
 
 Dead code by default — activates only when `DD_API_KEY` env var is set. Uses `datadog` package with DogStatsD. No runtime cost if absent.
@@ -62,7 +62,7 @@ Add to `pyproject.toml` dependencies: `datadog>=0.49.0`
 
 ---
 
-### U13 — Real-time web dashboard (~30 min Claude time)
+### [x] U13 — Real-time web dashboard (~30 min Claude time)
 **Files:** `src/api/dashboard.py` (or inline in `routes.py`), `src/static/index.html`
 
 Single-page dashboard served by FastAPI at `GET /`. Polls existing API endpoints every 3 seconds — no new backend logic needed.
@@ -82,7 +82,7 @@ Single-page dashboard served by FastAPI at `GET /`. Polls existing API endpoints
 
 ---
 
-### U14 — Alert trigger page (~20 min Claude time)
+### [x] U14 — Alert trigger page (~20 min Claude time)
 **Files:** `src/static/trigger.html`, add `GET /runs` list endpoint to `routes.py`
 
 Second page at `/trigger`. Lets you fire any alert at the harness with one click — primary demo input interface for the hackathon.

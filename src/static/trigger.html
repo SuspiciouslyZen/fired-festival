@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ops Harness — Fire Alert</title>
+  <style>
+    :root {
+      --bg: #0d1117;
+      --surface: #161b22;
+      --surface2: #1c2128;
+      --border: #30363d;
+      --text: #e6edf3;
+      --muted: #8b949e;
+      --green: #3fb950;
+      --green-bg: #0d2e1a;
+      --red: #f85149;
+      --red-bg: #2d0e0e;
+      --yellow: #e3b341;
+      --yellow-bg: #2d1f00;
+      --blue: #58a6ff;
+      --blue-bg: #0d1e36;
+      --accent: #1f6feb;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: 'SF Mono', 'Cascadia Code', 'Fira Code', monospace; font-size: 12px; min-height: 100vh; }
+
+    nav {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 20px; background: var(--surface); border-bottom: 1px solid var(--border);
+      position: sticky; top: 0; z-index: 10;
+    }
+    nav .logo { font-size: 14px; font-weight: 700; letter-spacing: 2px; color: var(--text); }
+    nav .logo span { color: var(--accent); }
+    nav a { color: var(--muted); text-decoration: none; font-size: 11px; letter-spacing: 1px; padding: 5px 12px; border: 1px solid var(--border); border-radius: 4px; transition: all 0.15s; }
+    nav a:hover { color: var(--text); border-color: var(--accent); }
+
+    .page-header { padding: 20px 20px 0; }
+    .page-header h1 { font-size: 13px; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
+    .page-header p { color: var(--muted); font-size: 11px; }
+
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; padding: 20px; }
+
+    .card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 6px;
+      display: flex; flex-direction: column; overflow: hidden; transition: border-color 0.15s;
+    }
+    .card:hover { border-color: var(--accent); }
+    .card-header { padding: 12px 14px; background: var(--surface2); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+    .card-service { font-weight: 700; font-size: 13px; }
+    .card-body { padding: 14px; flex: 1; }
+    .card-desc { color: var(--muted); font-size: 11px; line-height: 1.5; margin-bottom: 12px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+    .card-meta { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+    .meta-tag { background: var(--surface2); color: var(--muted); padding: 2px 8px; border-radius: 3px; font-size: 10px; border: 1px solid var(--border); }
+    .card-footer { padding: 0 14px 14px; }
+
+    .sev-badge { padding: 2px 8px; border-radius: 3px; font-size: 10px; font-weight: 700; letter-spacing: 0.5px; }
+    .sev-critical { background: var(--red-bg); color: var(--red); border: 1px solid #4a1a1a; }
+    .sev-high { background: #2d1a00; color: #f0883e; border: 1px solid #4a2d00; }
+    .sev-medium { background: var(--yellow-bg); color: var(--yellow); border: 1px solid #3d2f00; }
+    .sev-low { background: var(--blue-bg); color: var(--blue); border: 1px solid #1a3a6a; }
+
+    .trigger-btn {
+      width: 100%; padding: 8px 14px; background: var(--accent); color: #fff; border: none;
+      border-radius: 4px; font-family: inherit; font-size: 12px; font-weight: 600;
+      cursor: pointer; letter-spacing: 0.5px; transition: all 0.15s; display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    .trigger-btn:hover:not(:disabled) { background: #388bfd; }
+    .trigger-btn:disabled { opacity: 0.5; cursor: not-allowed; background: var(--surface2); color: var(--muted); border: 1px solid var(--border); }
+    .trigger-btn .spinner { width: 12px; height: 12px; border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff; border-radius: 50%; animation: spin 0.6s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .result {
+      margin-top: 10px; padding: 8px 12px; border-radius: 4px; font-size: 11px;
+      border: 1px solid; line-height: 1.4;
+    }
+    .result-completed { background: var(--green-bg); color: var(--green); border-color: #1a4731; }
+    .result-failed { background: var(--red-bg); color: var(--red); border-color: #4a1a1a; }
+    .result-awaiting { background: var(--yellow-bg); color: var(--yellow); border-color: #3d2f00; }
+    .result a { color: inherit; text-underline-offset: 2px; }
+
+    .custom-card .card-body { display: flex; flex-direction: column; gap: 10px; }
+    label { font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); display: block; margin-bottom: 4px; }
+    input, select, textarea {
+      width: 100%; background: var(--surface2); border: 1px solid var(--border); color: var(--text);
+      padding: 7px 10px; border-radius: 4px; font-family: inherit; font-size: 11px; outline: none;
+      transition: border-color 0.15s;
+    }
+    input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+    select option { background: var(--surface2); }
+    textarea { resize: vertical; min-height: 70px; }
+  </style>
+</head>
+<body>
+
+<nav>
+  <div class="logo"><span>OPS</span> HARNESS</div>
+  <a href="/static/index.html">Dashboard</a>
+</nav>
+
+<div class="page-header">
+  <h1>Fire Incident Alert</h1>
+  <p>Select a scenario to trigger the harness and watch it remediate in real time.</p>
+</div>
+
+<div class="grid" id="cards"></div>
+
+<script>
+  const FIXTURES = [
+    {
+      label: 'web-api CPU spike',
+      service: 'web-api',
+      severity: 'high',
+      description: 'CPU utilization at 94% on web-api service. P95 latency degraded to 2340ms (threshold: 500ms). Auto-scaling at max capacity (8/8 instances). Error rate elevated at 12.3%.',
+      source: 'pagerduty',
+      metadata: { incident_id: 'PD-2026-4521', triggered_at: '2026-06-12T10:23:00Z', escalation_level: 1, team: 'platform' }
+    },
+    {
+      label: 'postgres hung query',
+      service: 'postgres',
+      severity: 'high',
+      description: 'Long-running query detected on primary database. Query has been executing for 3847 seconds. Connection pool at 148/150 (98.7% utilization). Lock contention reported on \'events\' table with 12 queries waiting.',
+      source: 'datadog',
+      metadata: { query_id: 'pg-query-8847', database: 'production', table: 'events' }
+    },
+    {
+      label: 'CDN DNS failure',
+      service: 'cdn',
+      severity: 'medium',
+      description: 'DNS resolution failures for edge-us-west-2.cdn.example.com. Cache hit rate dropped to 34%. 28.7% of requests falling back to origin server. DNS resolution time: 8500ms (threshold: 100ms).',
+      source: 'cloudflare',
+      metadata: { edge_location: 'us-west-2', affected_domains: ['cdn.example.com', 'static.example.com'] }
+    },
+    {
+      label: 'unknown service',
+      service: 'billing-v3',
+      severity: 'critical',
+      description: 'Service billing-v3 reporting 100% error rate. All health checks failing.',
+      source: 'pagerduty',
+      metadata: { incident_id: 'PD-2026-4523' }
+    }
+  ];
+
+  function sevClass(sev) {
+    return 'sev-' + (sev || 'low').toLowerCase();
+  }
+
+  async function trigger(payload, cardId) {
+    const btn = document.getElementById('btn-' + cardId);
+    const resultEl = document.getElementById('result-' + cardId);
+    btn.disabled = true;
+    btn.innerHTML = '<div class="spinner"></div> Running…';
+    resultEl.className = 'result';
+    resultEl.innerHTML = '';
+    resultEl.style.display = 'none';
+
+    try {
+      const res = await fetch('/run', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      const status = data.status || 'FAILED';
+      const cls = status === 'COMPLETED' ? 'result-completed' : status === 'AWAITING_HUMAN' ? 'result-awaiting' : 'result-failed';
+      const runLink = `<a href="/static/index.html">${data.run_id ? data.run_id.slice(0,12) + '…' : '—'}</a>`;
+      let msg = '';
+      if (status === 'COMPLETED') msg = `Resolved · ${runLink}`;
+      else if (status === 'AWAITING_HUMAN') msg = `Escalated — awaiting human · ${runLink}`;
+      else msg = `Failed: ${data.error || 'unknown'} · ${runLink}`;
+      resultEl.className = 'result ' + cls;
+      resultEl.innerHTML = msg;
+      resultEl.style.display = 'block';
+    } catch (e) {
+      resultEl.className = 'result result-failed';
+      resultEl.innerHTML = 'Error: ' + e.message;
+      resultEl.style.display = 'block';
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = 'Trigger';
+    }
+  }
+
+  function renderFixtureCard(f, idx) {
+    const id = 'fixture-' + idx;
+    const sevC = sevClass(f.severity);
+    return `
+      <div class="card">
+        <div class="card-header">
+          <span class="card-service">${f.service}</span>
+          <span class="sev-badge ${sevC}">${f.severity.toUpperCase()}</span>
+        </div>
+        <div class="card-body">
+          <div class="card-desc">${f.description}</div>
+          <div class="card-meta">
+            <span class="meta-tag">src: ${f.source}</span>
+            ${Object.entries(f.metadata).slice(0,2).map(([k,v]) => `<span class="meta-tag">${k}: ${typeof v === 'object' ? JSON.stringify(v).slice(0,20) : v}</span>`).join('')}
+          </div>
+        </div>
+        <div class="card-footer">
+          <button class="trigger-btn" id="btn-${id}" onclick="trigger(${JSON.stringify(f)}, '${id}')">Trigger</button>
+          <div id="result-${id}" class="result" style="display:none"></div>
+        </div>
+      </div>`;
+  }
+
+  function renderCustomCard() {
+    return `
+      <div class="card custom-card">
+        <div class="card-header">
+          <span class="card-service">custom alert</span>
+          <span class="sev-badge sev-low">CUSTOM</span>
+        </div>
+        <div class="card-body">
+          <div>
+            <label>Service</label>
+            <select id="c-service">
+              <option value="web-api">web-api</option>
+              <option value="postgres">postgres</option>
+              <option value="cdn">cdn</option>
+              <option value="redis">redis</option>
+              <option value="worker">worker</option>
+            </select>
+          </div>
+          <div>
+            <label>Severity</label>
+            <select id="c-severity">
+              <option value="low">low</option>
+              <option value="medium">medium</option>
+              <option value="high" selected>high</option>
+              <option value="critical">critical</option>
+            </select>
+          </div>
+          <div>
+            <label>Description</label>
+            <textarea id="c-desc" placeholder="Describe the incident…"></textarea>
+          </div>
+        </div>
+        <div class="card-footer">
+          <button class="trigger-btn" id="btn-custom" onclick="triggerCustom()">Fire Alert</button>
+          <div id="result-custom" class="result" style="display:none"></div>
+        </div>
+      </div>`;
+  }
+
+  function triggerCustom() {
+    const payload = {
+      service: document.getElementById('c-service').value,
+      severity: document.getElementById('c-severity').value,
+      description: document.getElementById('c-desc').value || 'Custom alert triggered from dashboard',
+      source: 'dashboard',
+      metadata: {}
+    };
+    trigger(payload, 'custom');
+  }
+
+  const cards = document.getElementById('cards');
+  cards.innerHTML = FIXTURES.map((f, i) => renderFixtureCard(f, i)).join('') + renderCustomCard();
+</script>
+</body>
+</html>
