@@ -1,4 +1,4 @@
-"""OpenAI agent for swap demo — proves the harness is agent-agnostic."""
+"""Ollama agent — uses the OpenAI-compatible local endpoint at http://localhost:11434/v1."""
 import os
 import json
 from openai import AsyncOpenAI
@@ -7,16 +7,13 @@ from src.agents.base import BaseAgent
 from src.harness.models import AgentResponse, ToolCall
 
 
-class OpenAIAgent(BaseAgent):
+class OllamaAgent(BaseAgent):
     def __init__(self, model: str | None = None):
-        api_key = os.environ.get("OPENAI_API_KEY")
-        if not api_key:
-            raise ValueError("OPENAI_API_KEY environment variable is required")
-        self._client = AsyncOpenAI(api_key=api_key)
-        self._model = model or os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
+        self._model = model or os.environ.get("OLLAMA_MODEL", "llama3.2")
+        self._base_url = os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434/v1")
+        self._client = AsyncOpenAI(api_key="ollama", base_url=self._base_url)
 
     async def run(self, messages: list[dict], tools: list[dict]) -> AgentResponse:
-        # Convert to OpenAI format
         oai_messages = []
         for msg in messages:
             if msg["role"] in ("system", "user", "assistant"):
@@ -63,6 +60,10 @@ class OpenAIAgent(BaseAgent):
                 "output_tokens": response.usage.completion_tokens if response.usage else 0,
             },
         )
+
+    @property
+    def agent_name(self) -> str:
+        return f"ollama ({self._model})"
 
     def supports_tools(self) -> bool:
         return True

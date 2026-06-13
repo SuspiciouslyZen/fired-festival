@@ -6,7 +6,7 @@ COPY pyproject.toml .
 RUN pip install --no-cache-dir .
 
 COPY . .
-RUN mkdir -p data
+RUN mkdir -p data && chmod 777 data
 
 EXPOSE 8000
 

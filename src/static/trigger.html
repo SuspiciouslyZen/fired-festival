@@ -79,6 +79,27 @@
     .result-awaiting { background: var(--yellow-bg); color: var(--yellow); border-color: #3d2f00; }
     .result a { color: inherit; text-underline-offset: 2px; }
 
+    .card-label { font-size: 15px; font-weight: 700; margin-bottom: 2px; }
+    .card-scenario { color: var(--muted); font-size: 11px; line-height: 1.5; margin-bottom: 12px; }
+    .card-expect {
+      font-size: 10px; letter-spacing: 0.5px; padding: 6px 10px; border-radius: 4px;
+      border: 1px solid; line-height: 1.3;
+    }
+    .expect-pass { background: var(--green-bg); color: var(--green); border-color: #1a4731; }
+    .expect-fail { background: var(--red-bg); color: var(--red); border-color: #4a1a1a; }
+    .card-alert-detail { margin-top: 10px; padding: 8px 10px; background: var(--surface2); border-radius: 4px; border: 1px solid var(--border); }
+    .card-alert-detail summary { cursor: pointer; color: var(--muted); font-size: 10px; letter-spacing: 0.5px; text-transform: uppercase; }
+    .card-alert-detail .alert-body { margin-top: 8px; color: var(--muted); font-size: 10px; line-height: 1.5; }
+
+    .agent-opt { display: flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 4px; border: 1px solid var(--border); cursor: pointer; font-size: 11px; background: var(--surface2); color: var(--muted); transition: all 0.15s; user-select: none; }
+    .agent-opt:hover { border-color: var(--accent); color: var(--text); }
+    .agent-opt.selected { border-color: var(--accent); background: var(--blue-bg); color: var(--text); }
+    .agent-opt.unavailable { opacity: 0.4; cursor: not-allowed; }
+    .agent-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+    .dot-ready { background: var(--green); }
+    .dot-warn { background: var(--yellow); }
+    .dot-unavailable { background: var(--red); }
+
     .custom-card .card-body { display: flex; flex-direction: column; gap: 10px; }
     label { font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); display: block; margin-bottom: 4px; }
     input, select, textarea {
@@ -89,6 +110,25 @@
     input:focus, select:focus, textarea:focus { border-color: var(--accent); }
     select option { background: var(--surface2); }
     textarea { resize: vertical; min-height: 70px; }
+
+    #toast-container {
+      position: fixed; top: 60px; right: 20px; z-index: 100;
+      display: flex; flex-direction: column; gap: 8px; pointer-events: none;
+    }
+    .toast {
+      pointer-events: auto;
+      padding: 10px 16px; border-radius: 6px; font-size: 11px; line-height: 1.4;
+      border: 1px solid; max-width: 380px; box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+      animation: toast-in 0.25s ease-out;
+      display: flex; align-items: flex-start; gap: 10px;
+    }
+    .toast-close { cursor: pointer; opacity: 0.6; font-size: 14px; line-height: 1; flex-shrink: 0; }
+    .toast-close:hover { opacity: 1; }
+    .toast-completed { background: var(--green-bg); color: var(--green); border-color: #1a4731; }
+    .toast-failed { background: var(--red-bg); color: var(--red); border-color: #4a1a1a; }
+    .toast-awaiting { background: var(--yellow-bg); color: var(--yellow); border-color: #3d2f00; }
+    .toast-error { background: var(--red-bg); color: var(--red); border-color: #4a1a1a; }
+    @keyframes toast-in { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
   </style>
 </head>
 <body>
@@ -98,9 +138,22 @@
   <a href="/static/index.html">Dashboard</a>
 </nav>
 
+<div id="toast-container"></div>
+
 <div class="page-header">
-  <h1>Fire Incident Alert</h1>
-  <p>Select a scenario to trigger the harness and watch it remediate in real time.</p>
+  <h1>Incident Scenarios</h1>
+  <p>Each card simulates a different incident. Select an agent, then click "Run Scenario" to send the alert through the harness.</p>
+</div>
+
+<div id="agent-bar" style="padding: 12px 20px; background: var(--surface); border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 16px; flex-wrap: wrap;">
+  <span style="font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--muted)">Agent</span>
+  <div id="agent-options" style="display:flex;gap:8px;flex-wrap:wrap;">
+    <span style="color:var(--muted);font-size:11px">Loading…</span>
+  </div>
+  <div id="model-select-wrap" style="display:none;align-items:center;gap:8px">
+    <span style="font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--muted)">Model</span>
+    <select id="ollama-model-select" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:4px 8px;border-radius:4px;font-family:inherit;font-size:11px;outline:none"></select>
+  </div>
 </div>
 
 <div class="grid" id="cards"></div>
@@ -108,41 +161,167 @@
 <script>
   const FIXTURES = [
     {
-      label: 'web-api CPU spike',
+      label: 'CPU Spike',
+      scenario: 'The web-api service is maxed out — CPU at 94%, latency through the roof, auto-scaling exhausted. The agent will diagnose resource exhaustion and attempt remediation.',
+      expect: 'Resolved — agent diagnoses and remediates',
+      expectClass: 'expect-pass',
       service: 'web-api',
       severity: 'high',
-      description: 'CPU utilization at 94% on web-api service. P95 latency degraded to 2340ms (threshold: 500ms). Auto-scaling at max capacity (8/8 instances). Error rate elevated at 12.3%.',
+      description: '[PagerDuty] TRIGGERED: High CPU utilization on web-api — 94.2% sustained for 8m (threshold: 80%). Auto-scaling group asg-web-api-prod at max capacity (8/8). ELB 5xx error rate 12.3% (threshold: 1%). P99 latency 4820ms (SLO: 500ms). 3 of 8 instances reporting CPU steal > 15%, indicating noisy neighbors on underlying host.',
       source: 'pagerduty',
-      metadata: { incident_id: 'PD-2026-4521', triggered_at: '2026-06-12T10:23:00Z', escalation_level: 1, team: 'platform' }
+      metadata: {
+        incident_id: 'Q3KL9MXZ',
+        incident_number: 4521,
+        incident_url: 'https://acme.pagerduty.com/incidents/Q3KL9MXZ',
+        service_id: 'PWEB001',
+        service_name: 'web-api-prod',
+        escalation_policy: 'Platform On-Call',
+        assigned_to: 'oncall-platform@acme.com',
+        created_at: '2026-06-13T02:14:33Z',
+        alert_count: 7,
+        urgency: 'high',
+        asg_name: 'asg-web-api-prod',
+        asg_desired: 8,
+        asg_max: 8,
+        cpu_pct: 94.2,
+        cpu_steal_pct: 16.1,
+        elb_5xx_rate_pct: 12.3,
+        latency_p99_ms: 4820,
+        instance_ids: ['i-0a1b2c3d4e5f60001', 'i-0a1b2c3d4e5f60002', 'i-0a1b2c3d4e5f60003'],
+        region: 'us-east-1',
+        team: 'platform',
+        runbook_url: 'https://wiki.acme.internal/runbooks/web-api-cpu'
+      }
     },
     {
-      label: 'postgres hung query',
+      label: 'Hung Query',
+      scenario: 'A query has been running for over an hour on the primary Postgres database, consuming nearly all connections. The agent will read logs, identify the blocking query, and plan remediation.',
+      expect: 'Escalated — kill_query requires human approval',
+      expectClass: 'expect-fail',
       service: 'postgres',
       severity: 'high',
-      description: 'Long-running query detected on primary database. Query has been executing for 3847 seconds. Connection pool at 148/150 (98.7% utilization). Lock contention reported on \'events\' table with 12 queries waiting.',
+      description: '[Datadog] ALERT: postgres.connections.waiting exceeds threshold on prod-db-primary. Long-running query pg_query_id=8f3a2c1d has held lock on relation "events" (oid 16842) for 64m 07s. 148/150 connections consumed; new application connections timing out after 5s wait. 14 downstream queries queued behind lock. Replication lag on prod-db-replica-1 now 47s (threshold: 5s).',
       source: 'datadog',
-      metadata: { query_id: 'pg-query-8847', database: 'production', table: 'events' }
+      metadata: {
+        monitor_id: 19283,
+        monitor_name: 'Postgres connection pool saturation',
+        alert_transition: 'Triggered',
+        host: 'prod-db-primary.us-east-1.rds.amazonaws.com',
+        db_instance_id: 'prod-postgres-primary',
+        db_instance_class: 'db.r6g.2xlarge',
+        tags: ['env:production', 'service:postgres', 'team:data'],
+        triggered_at: '2026-06-13T01:09:55Z',
+        pg_query_id: '8f3a2c1d',
+        pg_pid: 31447,
+        query_duration_s: 3847,
+        relation: 'events',
+        relation_oid: 16842,
+        lock_type: 'relation',
+        lock_mode: 'AccessExclusiveLock',
+        connections_active: 148,
+        connections_max: 150,
+        queries_waiting: 14,
+        replication_lag_s: 47,
+        replica_host: 'prod-db-replica-1.us-east-1.rds.amazonaws.com',
+        runbook_url: 'https://wiki.acme.internal/runbooks/postgres-long-running-query'
+      }
     },
+    null,
     {
-      label: 'CDN DNS failure',
-      service: 'cdn',
-      severity: 'medium',
-      description: 'DNS resolution failures for edge-us-west-2.cdn.example.com. Cache hit rate dropped to 34%. 28.7% of requests falling back to origin server. DNS resolution time: 8500ms (threshold: 100ms).',
-      source: 'cloudflare',
-      metadata: { edge_location: 'us-west-2', affected_domains: ['cdn.example.com', 'static.example.com'] }
-    },
-    {
-      label: 'unknown service',
+      label: 'Unknown Service',
+      scenario: 'This alert references billing-v3, a service the harness does not recognize. CP1 (alert validation) should reject it immediately because the service is not in the known services list.',
+      expect: 'Fails at CP1 — unknown service rejected by guardrails',
+      expectClass: 'expect-fail',
       service: 'billing-v3',
       severity: 'critical',
-      description: 'Service billing-v3 reporting 100% error rate. All health checks failing.',
+      description: '[PagerDuty] TRIGGERED: billing-v3 health check failing on all 6 instances. HTTP /healthz returning 503 for 4m 22s. Payment processing pipeline stalled — 0 transactions processed in last 5 minutes (baseline: ~340/min). Stripe webhook receiver not acknowledging. Dead letter queue depth: 2,847 and growing.',
       source: 'pagerduty',
-      metadata: { incident_id: 'PD-2026-4523' }
+      metadata: {
+        incident_id: 'Q7NR2PVX',
+        incident_number: 4523,
+        incident_url: 'https://acme.pagerduty.com/incidents/Q7NR2PVX',
+        service_id: 'PBILL03',
+        service_name: 'billing-v3',
+        escalation_policy: 'Payments On-Call',
+        assigned_to: 'oncall-payments@acme.com',
+        created_at: '2026-06-13T02:51:17Z',
+        urgency: 'critical',
+        instances_failing: 6,
+        instances_total: 6,
+        healthcheck_url: 'https://billing-v3.internal/healthz',
+        transactions_per_min: 0,
+        transactions_baseline: 340,
+        dlq_depth: 2847,
+        stripe_webhook_ack: false,
+        region: 'us-east-1',
+        team: 'payments'
+      }
     }
   ];
 
   function sevClass(sev) {
     return 'sev-' + (sev || 'low').toLowerCase();
+  }
+
+  function showToast(message, type) {
+    const container = document.getElementById('toast-container');
+    const toast = document.createElement('div');
+    toast.className = 'toast toast-' + type;
+    toast.innerHTML = `<span style="flex:1">${message}</span><span class="toast-close" onclick="this.parentElement.remove()">×</span>`;
+    container.appendChild(toast);
+    setTimeout(() => { if (toast.parentElement) toast.remove(); }, 6000);
+  }
+
+  let selectedAgent = null;
+  let agentData = [];
+
+  async function loadAgents() {
+    const bar = document.getElementById('agent-options');
+    try {
+      const res = await fetch('/agents');
+      const data = await res.json();
+      agentData = data.agents;
+      selectedAgent = data.default;
+      bar.innerHTML = data.agents.map(a => {
+        const dotClass = a.available ? 'dot-ready' : 'dot-unavailable';
+        return `
+        <div class="agent-opt ${a.available ? '' : 'unavailable'} ${a.id === selectedAgent ? 'selected' : ''}"
+             id="agent-opt-${a.id}"
+             title="${a.status}"
+             onclick="${a.available ? `selectAgent('${a.id}')` : ''}">
+          <div class="agent-dot ${dotClass}"></div>
+          ${a.label}
+        </div>`;
+      }).join('');
+      updateModelSelect();
+    } catch (e) {
+      bar.innerHTML = `<span style="color:var(--red);font-size:11px">Failed to load agents: ${e.message}</span>`;
+    }
+  }
+
+  function selectAgent(id) {
+    selectedAgent = id;
+    document.querySelectorAll('.agent-opt').forEach(el => el.classList.remove('selected'));
+    const opt = document.getElementById('agent-opt-' + id);
+    if (opt) opt.classList.add('selected');
+    updateModelSelect();
+  }
+
+  function updateModelSelect() {
+    const wrap = document.getElementById('model-select-wrap');
+    const sel = document.getElementById('ollama-model-select');
+    if (selectedAgent !== 'ollama') { wrap.style.display = 'none'; return; }
+    const agent = agentData.find(a => a.id === 'ollama');
+    const models = agent && agent.available_models && agent.available_models.length ? agent.available_models : [];
+    if (!models.length) { wrap.style.display = 'none'; return; }
+    wrap.style.display = 'flex';
+    sel.innerHTML = models.map(m => `<option value="${m}">${m}</option>`).join('');
+  }
+
+  function selectedModel() {
+    if (selectedAgent !== 'ollama') return null;
+    const sel = document.getElementById('ollama-model-select');
+    return sel && sel.value ? sel.value : null;
   }
 
   async function trigger(payload, cardId) {
@@ -158,16 +337,35 @@
       const res = await fetch('/run', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        body: JSON.stringify({ ...payload, agent_type: selectedAgent, model: selectedModel() })
       });
-      const data = await res.json();
+      const text = await res.text();
+      let data;
+      try { data = JSON.parse(text); } catch { data = null; }
+
+      if (!res.ok || !data) {
+        const detail = data ? (data.detail || data.error || res.statusText) : (text.slice(0, 120) || res.statusText);
+        resultEl.className = 'result result-failed';
+        resultEl.innerHTML = `Error ${res.status}: ${detail}`;
+        resultEl.style.display = 'block';
+        showToast(`${payload.service}: Server error — ${detail}`, 'error');
+        return;
+      }
+
       const status = data.status || 'FAILED';
       const cls = status === 'COMPLETED' ? 'result-completed' : status === 'AWAITING_HUMAN' ? 'result-awaiting' : 'result-failed';
       const runLink = `<a href="/static/index.html">${data.run_id ? data.run_id.slice(0,12) + '…' : '—'}</a>`;
       let msg = '';
-      if (status === 'COMPLETED') msg = `Resolved · ${runLink}`;
-      else if (status === 'AWAITING_HUMAN') msg = `Escalated — awaiting human · ${runLink}`;
-      else msg = `Failed: ${data.error || 'unknown'} · ${runLink}`;
+      if (status === 'COMPLETED') {
+        msg = `Resolved · ${runLink}`;
+        showToast(`${payload.service}: Incident resolved`, 'completed');
+      } else if (status === 'AWAITING_HUMAN') {
+        msg = `Escalated — awaiting human · ${runLink}`;
+        showToast(`${payload.service}: Escalated — requires human decision`, 'awaiting');
+      } else {
+        msg = `Failed: ${data.error || 'unknown'} · ${runLink}`;
+        showToast(`${payload.service}: ${data.error || 'Run failed'}`, 'failed');
+      }
       resultEl.className = 'result ' + cls;
       resultEl.innerHTML = msg;
       resultEl.style.display = 'block';
@@ -175,9 +373,10 @@
       resultEl.className = 'result result-failed';
       resultEl.innerHTML = 'Error: ' + e.message;
       resultEl.style.display = 'block';
+      showToast(`${payload.service}: ${e.message}`, 'error');
     } finally {
       btn.disabled = false;
-      btn.innerHTML = 'Trigger';
+      btn.innerHTML = (btn.id === 'btn-custom' || btn.id === 'btn-raw') ? 'Fire Alert' : 'Run Scenario';
     }
   }
 
@@ -191,50 +390,68 @@
           <span class="sev-badge ${sevC}">${f.severity.toUpperCase()}</span>
         </div>
         <div class="card-body">
-          <div class="card-desc">${f.description}</div>
-          <div class="card-meta">
-            <span class="meta-tag">src: ${f.source}</span>
-            ${Object.entries(f.metadata).slice(0,2).map(([k,v]) => `<span class="meta-tag">${k}: ${typeof v === 'object' ? JSON.stringify(v).slice(0,20) : v}</span>`).join('')}
-          </div>
+          <div class="card-label">${f.label}</div>
+          <div class="card-scenario">${f.scenario}</div>
+          <div class="card-expect ${f.expectClass}">${f.expect}</div>
+          <details class="card-alert-detail">
+            <summary>Alert payload</summary>
+            <div class="alert-body">
+              ${f.description}<br><br>
+              <span class="meta-tag">src: ${f.source}</span>
+              ${Object.entries(f.metadata).slice(0,3).map(([k,v]) => `<span class="meta-tag">${k}: ${typeof v === 'object' ? JSON.stringify(v).slice(0,24) : v}</span>`).join(' ')}
+            </div>
+          </details>
         </div>
         <div class="card-footer">
-          <button class="trigger-btn" id="btn-${id}" onclick="trigger(${JSON.stringify(f)}, '${id}')">Trigger</button>
+          <button class="trigger-btn" id="btn-${id}" onclick="triggerFixture(${idx})">Run Scenario</button>
           <div id="result-${id}" class="result" style="display:none"></div>
         </div>
       </div>`;
   }
 
+  function triggerFixture(idx) {
+    trigger(FIXTURES[idx], 'fixture-' + idx);
+  }
+
+  const CUSTOM_TEMPLATE_2 = JSON.stringify({
+    service: "worker",
+    severity: "medium",
+    description: "[PagerDuty] TRIGGERED: Background job queue depth exceeding threshold on worker fleet. Queue 'email_notifications' depth: 94,203 (threshold: 10,000). Oldest job enqueued 47m ago. Worker process count: 12/24 expected (12 workers crashed with OOM in last 30m). Job failure rate: 34.1% (threshold: 2%). Dead letter queue: 2,109 jobs. Estimated time to drain at current throughput: 6h 22m.",
+    source: "pagerduty",
+    metadata: {
+      incident_id: "Q9XP4WKR",
+      incident_number: 4529,
+      service_name: "worker-prod",
+      escalation_policy: "Platform On-Call",
+      assigned_to: "oncall-platform@acme.com",
+      created_at: new Date().toISOString(),
+      urgency: "high",
+      queue_name: "email_notifications",
+      queue_depth: 94203,
+      queue_depth_threshold: 10000,
+      oldest_job_age_s: 2820,
+      workers_running: 12,
+      workers_expected: 24,
+      workers_oom_killed_30m: 12,
+      job_failure_rate_pct: 34.1,
+      dlq_depth: 2109,
+      drain_estimate_s: 22920,
+      region: "us-east-1",
+      team: "platform"
+    }
+  }, null, 2);
+
   function renderCustomCard() {
     return `
       <div class="card custom-card">
         <div class="card-header">
-          <span class="card-service">custom alert</span>
-          <span class="sev-badge sev-low">CUSTOM</span>
+          <span class="card-service">raw json</span>
+          <span class="sev-badge sev-medium">CUSTOM</span>
         </div>
         <div class="card-body">
-          <div>
-            <label>Service</label>
-            <select id="c-service">
-              <option value="web-api">web-api</option>
-              <option value="postgres">postgres</option>
-              <option value="cdn">cdn</option>
-              <option value="redis">redis</option>
-              <option value="worker">worker</option>
-            </select>
-          </div>
-          <div>
-            <label>Severity</label>
-            <select id="c-severity">
-              <option value="low">low</option>
-              <option value="medium">medium</option>
-              <option value="high" selected>high</option>
-              <option value="critical">critical</option>
-            </select>
-          </div>
-          <div>
-            <label>Description</label>
-            <textarea id="c-desc" placeholder="Describe the incident…"></textarea>
-          </div>
+          <label>Alert payload — edit and fire</label>
+          <textarea id="c-json2" style="min-height:160px;font-size:10px;line-height:1.6">${CUSTOM_TEMPLATE_2}</textarea>
+          <div id="c-json2-error" style="display:none;color:var(--red);font-size:10px;margin-top:4px"></div>
         </div>
         <div class="card-footer">
           <button class="trigger-btn" id="btn-custom" onclick="triggerCustom()">Fire Alert</button>
@@ -244,18 +461,84 @@
   }
 
   function triggerCustom() {
-    const payload = {
-      service: document.getElementById('c-service').value,
-      severity: document.getElementById('c-severity').value,
-      description: document.getElementById('c-desc').value || 'Custom alert triggered from dashboard',
-      source: 'dashboard',
-      metadata: {}
-    };
+    const raw = document.getElementById('c-json2').value;
+    const errEl = document.getElementById('c-json2-error');
+    let payload;
+    try {
+      payload = JSON.parse(raw);
+      errEl.style.display = 'none';
+    } catch (e) {
+      errEl.textContent = 'Invalid JSON: ' + e.message;
+      errEl.style.display = 'block';
+      return;
+    }
     trigger(payload, 'custom');
   }
 
+  const CUSTOM_TEMPLATE = JSON.stringify({
+    service: "redis",
+    severity: "critical",
+    description: "[Datadog] ALERT: redis.mem.fragmentation_ratio = 3.42 on cache-primary (threshold: 1.5). Used memory 14.1GB / maxmemory 16GB (88%). Eviction policy: allkeys-lru. Evicted keys last 60s: 48,302. Cache hit rate dropped from 94.1% to 61.3% in last 10m — downstream services experiencing cold-cache misses. Latency p99: 94ms (threshold: 5ms). Connected clients: 2,841 / 3,000 limit.",
+    source: "datadog",
+    metadata: {
+      monitor_id: 38821,
+      monitor_name: "Redis memory fragmentation critical",
+      alert_transition: "Triggered",
+      host: "cache-primary.use1.acme.internal",
+      instance_type: "cache.r6g.4xlarge",
+      tags: ["env:production", "service:redis", "cluster:session-cache"],
+      triggered_at: new Date().toISOString(),
+      used_memory_bytes: 15140265984,
+      maxmemory_bytes: 17179869184,
+      fragmentation_ratio: 3.42,
+      evicted_keys_60s: 48302,
+      hit_rate_pct: 61.3,
+      hit_rate_baseline_pct: 94.1,
+      connected_clients: 2841,
+      client_limit: 3000,
+      latency_p99_ms: 94,
+      region: "us-east-1",
+      team: "platform"
+    }
+  }, null, 2);
+
+  function renderRawCard() {
+    return `
+      <div class="card custom-card">
+        <div class="card-header">
+          <span class="card-service">raw json</span>
+          <span class="sev-badge sev-low">CUSTOM</span>
+        </div>
+        <div class="card-body">
+          <label>Alert payload (JSON)</label>
+          <textarea id="c-json" style="min-height:160px;font-size:10px;line-height:1.6">${CUSTOM_TEMPLATE}</textarea>
+          <div id="c-json-error" style="display:none;color:var(--red);font-size:10px;margin-top:4px"></div>
+        </div>
+        <div class="card-footer">
+          <button class="trigger-btn" id="btn-raw" onclick="triggerRaw()">Fire Alert</button>
+          <div id="result-raw" class="result" style="display:none"></div>
+        </div>
+      </div>`;
+  }
+
+  function triggerRaw() {
+    const raw = document.getElementById('c-json').value;
+    const errEl = document.getElementById('c-json-error');
+    let payload;
+    try {
+      payload = JSON.parse(raw);
+      errEl.style.display = 'none';
+    } catch (e) {
+      errEl.textContent = 'Invalid JSON: ' + e.message;
+      errEl.style.display = 'block';
+      return;
+    }
+    trigger(payload, 'raw');
+  }
+
   const cards = document.getElementById('cards');
-  cards.innerHTML = FIXTURES.map((f, i) => renderFixtureCard(f, i)).join('') + renderCustomCard();
+  cards.innerHTML = FIXTURES.map((f, i) => f === null ? renderRawCard() : renderFixtureCard(f, i)).join('') + renderCustomCard();
+  loadAgents();
 </script>
 </body>
 </html>

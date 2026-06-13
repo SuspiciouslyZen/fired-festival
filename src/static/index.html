@@ -61,20 +61,37 @@
       font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted);
       display: flex; align-items: center; justify-content: space-between;
     }
-    .panel-body { padding: 0; max-height: 320px; overflow-y: auto; }
+    .panel-body { padding: 0; max-height: 520px; overflow-y: auto; }
     .panel-body::-webkit-scrollbar { width: 4px; }
     .panel-body::-webkit-scrollbar-thumb { background: var(--border); }
 
+    .run-entry { border-bottom: 1px solid var(--border); }
+    .run-entry:last-child { border-bottom: none; }
     .run-row {
       display: grid; grid-template-columns: auto 1fr auto auto; gap: 12px; align-items: center;
-      padding: 10px 16px; border-bottom: 1px solid var(--border); transition: background 0.1s;
+      padding: 10px 16px; transition: background 0.1s; cursor: pointer;
     }
-    .run-row:last-child { border-bottom: none; }
     .run-row:hover { background: var(--surface2); }
     .run-service { font-weight: 600; color: var(--text); }
     .run-id { color: var(--muted); font-size: 10px; }
     .run-time { color: var(--muted); font-size: 10px; white-space: nowrap; }
     .run-actions { color: var(--muted); font-size: 10px; }
+
+    .run-detail { display: none; padding: 0 16px 12px; }
+    .run-detail.open { display: block; }
+    .detail-section { margin-bottom: 10px; }
+    .detail-label { font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); margin-bottom: 5px; }
+    .detail-text { font-size: 11px; color: var(--text); line-height: 1.5; }
+    .detail-text .muted { color: var(--muted); }
+    .detail-step {
+      display: flex; align-items: flex-start; gap: 8px;
+      padding: 6px 10px; background: var(--surface2); border-radius: 4px; margin-bottom: 4px;
+      font-size: 10px; line-height: 1.4;
+    }
+    .detail-step-icon { flex-shrink: 0; margin-top: 1px; }
+    .detail-cp { display: inline-flex; align-items: center; gap: 5px; padding: 3px 8px; border-radius: 3px; font-size: 10px; margin-right: 6px; margin-bottom: 4px; border: 1px solid var(--border); }
+    .detail-cp.pass { color: var(--green); border-color: #1a4731; }
+    .detail-cp.fail { color: var(--red); border-color: #4a1a1a; }
 
     .badge {
       padding: 2px 8px; border-radius: 3px; font-size: 10px; font-weight: 600;
@@ -129,6 +146,18 @@
     .btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
     .empty { padding: 24px 16px; color: var(--muted); text-align: center; font-size: 11px; }
+
+    .mock-banner { background: #2d1f00; border: 1px solid #4a3800; color: var(--yellow); padding: 6px 12px; border-radius: 4px; font-size: 10px; font-weight: 700; letter-spacing: 0.5px; margin-bottom: 8px; }
+
+    .trace-feed { display: flex; flex-direction: column; gap: 4px; }
+    .trace-msg { display: flex; gap: 10px; padding: 6px 10px; border-radius: 3px; font-size: 10px; line-height: 1.6; align-items: flex-start; }
+    .trace-user { background: var(--surface2); }
+    .trace-agent-reasoning { background: #0a1628; border-left: 2px solid var(--blue); }
+    .trace-agent-call { background: #0d1e36; }
+    .trace-tool { background: #0d2e1a; }
+    .trace-role { flex-shrink: 0; width: 60px; font-weight: 700; color: var(--muted); text-align: right; padding-top: 1px; font-size: 9px; letter-spacing: 0.5px; text-transform: uppercase; }
+    .trace-body { flex: 1; white-space: pre-wrap; word-break: break-word; }
+    .trace-reasoning-text { color: var(--text); font-size: 11px; line-height: 1.6; }
 
     .last-updated { color: var(--muted); font-size: 10px; }
   </style>
@@ -192,9 +221,31 @@
     return `<span class="badge badge-${status}">${status.replace('_', ' ')}</span>`;
   }
 
+  function esc(s) {
+    if (typeof s !== 'string') s = String(s);
+    const d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+  }
+
+  const _openRuns = new Set();
+
+  function toggleDetail(runId) {
+    const el = document.getElementById('detail-' + runId);
+    if (!el) return;
+    if (_openRuns.has(runId)) {
+      _openRuns.delete(runId);
+      el.classList.remove('open');
+    } else {
+      _openRuns.add(runId);
+      el.classList.add('open');
+    }
+  }
+
   function getService(run) {
     const r = run.result;
     if (r && r.report && r.report.alert && r.report.alert.service) return r.report.alert.service;
+    if (r && r.alert && r.alert.service) return r.alert.service;
     return run.alert_id ? run.alert_id.slice(0, 8) : '—';
   }
 
@@ -270,15 +321,103 @@
     } else {
       feedEl.innerHTML = runs.map(run => {
         const svc = getService(run);
-        const actions = run.result && run.result.report && run.result.report.actions_taken ? run.result.report.actions_taken.length : '';
-        return `<div class="run-row">
-          ${badge(run.status)}
-          <div>
-            <div class="run-service">${svc}</div>
-            <div class="run-id">${run.run_id.slice(0, 12)}…</div>
+        const r = run.result || {};
+        const report = r.report || {};
+        const actionsTaken = report.actions_taken || [];
+        const actionCount = actionsTaken.length;
+        const rid = run.run_id.slice(0, 8);
+
+        let detailHtml = '';
+        const isMock = r.agent === 'mock';
+
+        // Mock agent banner — must be first and prominent
+        if (isMock) {
+          detailHtml += `<div class="mock-banner">&#9888; MOCK AGENT — scripted responses, NOT real model output. Set AGENT_TYPE=ollama (or claude/openai) to use a real model.</div>`;
+        }
+
+        // Input alert JSON
+        const alertPayload = (report && report.alert) || null;
+        if (alertPayload) {
+          detailHtml += `<div class="detail-section"><div class="detail-label">Input Alert</div><div style="background:var(--bg);border:1px solid var(--border);border-radius:3px;padding:8px 10px;font-size:10px;line-height:1.6;white-space:pre-wrap;max-height:200px;overflow-y:auto;color:var(--muted)">${esc(JSON.stringify(alertPayload, null, 2))}</div></div>`;
+        }
+
+        // Full agent trace — primary display, immediately after alert
+        const trace = r.trace || [];
+        if (trace.length) {
+          let traceHtml = '';
+          trace.forEach(msg => {
+            const role = msg.role;
+            // Skip the first user message (the alert payload dump — already shown above)
+            if (role === 'user' && msg.content && msg.content.startsWith('INCIDENT ALERT:')) return;
+
+            if (role === 'user') {
+              // Harness prompts back to the agent
+              traceHtml += `<div class="trace-msg trace-user"><span class="trace-role">harness</span><span class="trace-body" style="color:var(--muted)">${esc(msg.content)}</span></div>`;
+            } else if (role === 'assistant') {
+              // Reasoning text — most important, shown first with emphasis
+              if (msg.content) {
+                traceHtml += `<div class="trace-msg trace-agent-reasoning"><span class="trace-role" style="color:var(--blue)">reasoning</span><span class="trace-body trace-reasoning-text">${esc(msg.content)}</span></div>`;
+              }
+              // Tool calls dispatched
+              const calls = msg.tool_calls_made || [];
+              calls.forEach(tc => {
+                traceHtml += `<div class="trace-msg trace-agent-call"><span class="trace-role" style="color:var(--blue)">call</span><span class="trace-body"><span style="color:var(--blue);font-weight:700">&#9656; ${esc(tc.tool_name)}</span> <span style="color:var(--muted)">${esc(JSON.stringify(tc.arguments))}</span></span></div>`;
+              });
+            } else if (role === 'tool') {
+              let parsed;
+              try { parsed = JSON.parse(msg.content); } catch { parsed = null; }
+              const toolName = msg.tool_name || 'tool';
+              let body = '';
+              if (parsed && parsed.output) {
+                const out = parsed.output;
+                if (out.log_lines && Array.isArray(out.log_lines)) {
+                  body = out.log_lines.map(l => esc(l)).join('\n');
+                } else {
+                  body = Object.entries(out).map(([k,v]) => `${k}: ${typeof v === 'object' ? JSON.stringify(v) : v}`).join('\n');
+                }
+              } else if (parsed && parsed.error) {
+                body = 'ERROR: ' + parsed.error;
+              } else if (parsed) {
+                body = JSON.stringify(parsed, null, 2);
+              }
+              traceHtml += `<div class="trace-msg trace-tool"><span class="trace-role" style="color:var(--green)">${esc(toolName)}</span><span class="trace-body" style="color:var(--muted);white-space:pre-wrap">${body}</span></div>`;
+            }
+          });
+          const agentLabel = r.agent ? esc(r.agent) : 'agent';
+          detailHtml += `<div class="detail-section"><div class="detail-label">Model Reasoning &amp; Actions <span style="color:var(--muted);font-weight:400;text-transform:none;letter-spacing:0">(${agentLabel})</span></div><div class="trace-feed">${traceHtml}</div></div>`;
+        }
+
+        if (r.error) {
+          detailHtml += `<div class="detail-section"><div class="detail-label">Error</div><div class="detail-text" style="color:var(--red)">${esc(r.error)}</div></div>`;
+        }
+
+        const cps = r.checkpoints || [];
+        if (cps.length) {
+          const cpHtml = cps.map(cp => {
+            const cls = cp.passed ? 'pass' : 'fail';
+            const icon = cp.passed ? '&#10003;' : '&#10007;';
+            let label = cp.stage.replace('_', ' ').replace('_', ' ');
+            if (cp.failure_reason) label += ` — ${cp.failure_reason}`;
+            return `<span class="detail-cp ${cls}">${icon} ${esc(label)}</span>`;
+          }).join('');
+          detailHtml += `<div class="detail-section"><div class="detail-label">Checkpoints</div><div>${cpHtml}</div></div>`;
+        }
+
+        if (report.resolution_status) {
+          detailHtml += `<div class="detail-section"><div class="detail-label">Resolution</div><div class="detail-text">${esc(report.outcomes ? report.outcomes.join('; ') : report.resolution_status)}</div></div>`;
+        }
+
+        return `<div class="run-entry">
+          <div class="run-row" onclick="toggleDetail('${run.run_id}')">
+            ${badge(run.status)}
+            <div>
+              <div class="run-service">${svc}</div>
+              <div class="run-id">${rid}… · ${actionCount ? actionCount + ' actions' : 'no actions'}</div>
+            </div>
+            <div class="run-time">${timeAgo(run.started_at)}</div>
+            <div class="run-actions" style="font-size:14px;color:var(--muted)">&#9662;</div>
           </div>
-          <div class="run-time">${timeAgo(run.started_at)}</div>
-          <div class="run-actions">${actions ? actions + ' actions' : ''}</div>
+          <div class="run-detail${_openRuns.has(run.run_id) ? ' open' : ''}" id="detail-${run.run_id}">${detailHtml || '<div class="detail-text muted">No detail available</div>'}</div>
         </div>`;
       }).join('');
     }

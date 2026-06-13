@@ -7,12 +7,12 @@ from src.harness.models import AgentResponse, ToolCall
 
 
 class ClaudeAgent(BaseAgent):
-    def __init__(self, model: str = "claude-sonnet-4-20250514"):
+    def __init__(self, model: str | None = None):
         api_key = os.environ.get("ANTHROPIC_API_KEY")
         if not api_key:
             raise ValueError("ANTHROPIC_API_KEY environment variable is required")
         self._client = AsyncAnthropic(api_key=api_key)
-        self._model = model
+        self._model = model or os.environ.get("CLAUDE_MODEL", "claude-sonnet-4-20250514")
 
     async def run(self, messages: list[dict], tools: list[dict]) -> AgentResponse:
         # Convert messages to Anthropic format
@@ -78,6 +78,10 @@ class ClaudeAgent(BaseAgent):
                 "output_tokens": response.usage.output_tokens,
             },
         )
+
+    @property
+    def agent_name(self) -> str:
+        return f"claude ({self._model})"
 
     def supports_tools(self) -> bool:
         return True

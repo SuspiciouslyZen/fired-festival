@@ -4,6 +4,10 @@ from src.harness.models import AgentResponse
 
 
 class BaseAgent(ABC):
+    @property
+    def agent_name(self) -> str:
+        return "unknown"
+
     @abstractmethod
     async def run(
         self,

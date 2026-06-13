@@ -3,6 +3,8 @@ FastAPI API surface.
 
 Endpoints:
 - POST /run         — submit alert, run harness, return result
+- GET  /agents      — list agents with live reachability status
+- GET  /runs        — list recent runs
 - GET  /runs/{id}   — get run status + checkpoint history
 - GET  /runs/{id}/alarms — get alarms for a run
 - POST /runs/{id}/escalation — human decision on CRITICAL escalation
@@ -10,6 +12,7 @@ Endpoints:
 - GET  /health      — health check
 """
 import os
+import httpx
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import RedirectResponse
@@ -51,20 +54,21 @@ if os.path.isdir(_static_dir):
     app.mount("/static", StaticFiles(directory=_static_dir), name="static")
 
 
-def _get_agent():
-    """Create the configured agent. Defaults to Claude, falls back to mock."""
-    agent_type = os.environ.get("AGENT_TYPE", "claude")
-    if agent_type == "openai":
+def _build_agent(agent_type: str, model: str | None = None):
+    if agent_type == "ollama":
+        from src.agents.ollama_agent import OllamaAgent
+        return OllamaAgent(model=model or None)
+    elif agent_type == "claude":
+        from src.agents.claude_agent import ClaudeAgent
+        return ClaudeAgent()
+    elif agent_type == "openai":
         from src.agents.openai_agent import OpenAIAgent
         return OpenAIAgent()
     elif agent_type == "mock":
         from src.agents.mock_agent import MockAgent
         return MockAgent()
-    elif agent_type == "claude":
-        from src.agents.claude_agent import ClaudeAgent
-        return ClaudeAgent()
     else:
-        raise ValueError(f"Unknown agent type: {agent_type}")
+        raise ValueError(f"Unknown agent_type '{agent_type}'. Valid: ollama, claude, openai, mock")
 
 
 class RunRequest(BaseModel):
@@ -73,12 +77,15 @@ class RunRequest(BaseModel):
     description: str
     source: str = "api"
     metadata: dict = {}
+    agent_type: str = os.environ.get("AGENT_TYPE", "ollama")
+    model: str | None = None
 
 
 class ReplayRequest(BaseModel):
     run_id: str
-    replay_from: str  # "CP1_ALERT_PARSED", "CP2_HYPOTHESIS_FORMED", etc.
+    replay_from: str
     alert: dict
+    agent_type: str = os.environ.get("AGENT_TYPE", "ollama")
 
 
 @app.get("/")
@@ -91,6 +98,70 @@ async def health():
     return {"status": "ok", "service": "ops-runbook-harness"}
 
 
+@app.get("/agents")
+async def list_agents():
+    """Return each agent with live reachability status."""
+    agents = []
+
+    # Ollama — probe the local API
+    ollama_url = os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434")
+    ollama_model = os.environ.get("OLLAMA_MODEL", "llama3.2")
+    try:
+        async with httpx.AsyncClient(timeout=2.0) as client:
+            r = await client.get(f"{ollama_url.rstrip('/v1')}/api/tags")
+            available_models = [m["name"] for m in r.json().get("models", [])]
+            agents.append({
+                "id": "ollama",
+                "label": f"Ollama — {ollama_model}",
+                "model": ollama_model,
+                "available": True,
+                "status": "ready",
+                "available_models": available_models,
+            })
+    except Exception as e:
+        agents.append({
+            "id": "ollama",
+            "label": f"Ollama — {ollama_model}",
+            "model": ollama_model,
+            "available": False,
+            "status": f"unreachable — is Ollama running? ({e})",
+            "available_models": [],
+        })
+
+    # Claude — check for API key
+    claude_model = os.environ.get("CLAUDE_MODEL", "claude-sonnet-4-20250514")
+    has_claude_key = bool(os.environ.get("ANTHROPIC_API_KEY"))
+    agents.append({
+        "id": "claude",
+        "label": f"Claude — {claude_model}",
+        "model": claude_model,
+        "available": has_claude_key,
+        "status": "ready" if has_claude_key else "ANTHROPIC_API_KEY not set",
+    })
+
+    # OpenAI — check for API key
+    openai_model = os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
+    has_openai_key = bool(os.environ.get("OPENAI_API_KEY"))
+    agents.append({
+        "id": "openai",
+        "label": f"OpenAI — {openai_model}",
+        "model": openai_model,
+        "available": has_openai_key,
+        "status": "ready" if has_openai_key else "OPENAI_API_KEY not set",
+    })
+
+    # Mock — always available
+    agents.append({
+        "id": "mock",
+        "label": "Mock (scripted, no model)",
+        "model": None,
+        "available": True,
+        "status": "ready",
+    })
+
+    return {"agents": agents, "default": os.environ.get("AGENT_TYPE", "ollama")}
+
+
 @app.get("/runs")
 async def list_runs(limit: int = 50):
     return await _store.list_runs(limit=min(limit, 100))
@@ -99,18 +170,22 @@ async def list_runs(limit: int = 50):
 @app.post("/run")
 async def run_harness(request: RunRequest):
     try:
-        alert = MaterialHandler.validate_alert(request.model_dump())
+        alert = MaterialHandler.validate_alert(request.model_dump(exclude={"agent_type", "model"}))
     except ValueError as e:
         raise HTTPException(status_code=422, detail=str(e))
 
     try:
-        agent = _get_agent()
-    except ValueError as e:
-        raise HTTPException(status_code=500, detail=str(e))
-    registry = create_registry(_guardrails)
-    loop = HarnessLoop(agent=agent, guardrails=_guardrails, store=_store, registry=registry)
-    result = await loop.run(alert)
-    return result
+        agent = _build_agent(request.agent_type, request.model)
+    except (ValueError, Exception) as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    try:
+        registry = create_registry(_guardrails)
+        loop = HarnessLoop(agent=agent, guardrails=_guardrails, store=_store, registry=registry)
+        result = await loop.run(alert)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Harness execution failed: {e}")
 
 
 @app.get("/runs/{run_id}")
@@ -127,7 +202,6 @@ async def get_run_alarms(run_id: str):
     run = await _store.get_run(run_id)
     if not run:
         raise HTTPException(status_code=404, detail=f"Run {run_id} not found")
-    # Alarms are stored in the run result
     result = run.get("result")
     if result and "alarms" in result:
         return {"run_id": run_id, "alarms": result["alarms"]}
@@ -149,7 +223,7 @@ async def handle_escalation(run_id: str, decision: EscalationDecision):
         await _store.update_run_status(run_id, "FAILED")
         return {"run_id": run_id, "status": "FAILED", "decision": "rejected"}
     else:
-        raise HTTPException(status_code=400, detail=f"Invalid decision: {decision.decision}. Must be 'approve' or 'reject'.")
+        raise HTTPException(status_code=400, detail=f"Invalid decision: {decision.decision}")
 
 
 @app.post("/replay")
@@ -164,7 +238,7 @@ async def replay_run(request: ReplayRequest):
     except ValueError as e:
         raise HTTPException(status_code=422, detail=str(e))
 
-    agent = _get_agent()
+    agent = _build_agent(request.agent_type)
     registry = create_registry(_guardrails)
     loop = HarnessLoop(agent=agent, guardrails=_guardrails, store=_store, registry=registry)
     result = await loop.run(alert, replay_from=stage, replay_run_id=request.run_id)
