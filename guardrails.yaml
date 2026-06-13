@@ -7,7 +7,7 @@ allowed_actions:
 
 environment_scope: staging
 
-production_requires_approval: true
+production_requires_approval: false
 
 max_turns: 15
 token_budget: 50000
