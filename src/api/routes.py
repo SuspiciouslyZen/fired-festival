@@ -117,26 +117,36 @@ async def health():
 
 @app.get("/debug/discovery")
 async def debug_discovery():
-    import boto3, traceback
-    from src.aws.discovery import get_service_instance_map
-    cached = get_service_instance_map()
-    error = None
-    fresh = []
+    result = {
+        "cached": {},
+        "allowed_services": _guardrails.config.allowed_services if _guardrails else [],
+        "identity": None,
+        "fresh_arns": [],
+        "error": None,
+    }
     try:
+        from src.aws.discovery import get_service_instance_map
+        result["cached"] = get_service_instance_map()
+    except Exception as e:
+        result["error"] = f"discovery import: {e}"
+        return result
+    try:
+        import boto3
+        sts = boto3.client("sts", region_name="us-east-2")
+        r = sts.get_caller_identity()
+        result["identity"] = {"Account": r.get("Account"), "Arn": r.get("Arn")}
+    except Exception as e:
+        result["identity"] = f"sts error: {e}"
+    try:
+        import boto3
         client = boto3.client("resourcegroupstaggingapi", region_name="us-east-2")
         paginator = client.get_paginator("get_resources")
         for page in paginator.paginate(TagFilters=[{"Key": "Monitor", "Values": ["true"]}], ResourceTypeFilters=["ec2:instance"]):
             for r in page["ResourceTagMappingList"]:
-                fresh.append(r["ResourceARN"])
+                result["fresh_arns"].append(r["ResourceARN"])
     except Exception as e:
-        error = traceback.format_exc()
-    identity = None
-    try:
-        sts = boto3.client("sts", region_name="us-east-2")
-        identity = sts.get_caller_identity()
-    except Exception as e:
-        identity = str(e)
-    return {"cached": cached, "fresh_arns": fresh, "error": error, "identity": identity, "allowed_services": _guardrails.config.allowed_services if _guardrails else []}
+        result["error"] = f"tagging api: {e}"
+    return result
 
 
 @app.post("/webhook/ec2")
