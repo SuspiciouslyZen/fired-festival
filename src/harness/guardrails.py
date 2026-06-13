@@ -24,6 +24,7 @@ class GuardrailConfig(BaseModel):
     timeout_seconds: int = 120
     requires_approval: list[str] = []
     severity_overrides: dict[str, str] = {}
+    allowed_services: list[str] = []
 
 
 class GuardrailEngine:
@@ -61,6 +62,10 @@ class GuardrailEngine:
             return GuardrailDecision.NEEDS_APPROVAL
 
         return GuardrailDecision.ALLOWED
+
+    def add_allowed_services(self, services: list[str]) -> None:
+        """Augment the allowed-services list with AWS-discovered service names."""
+        self.config.allowed_services = list(set(self.config.allowed_services) | set(services))
 
     def check_limits(self, turn_count: int, token_count: int) -> tuple[bool, str | None]:
         """

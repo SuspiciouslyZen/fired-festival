@@ -1,0 +1,211 @@
+{
+  "/OpsRunbookHarness": [
+    {
+      "type": "aws:cdk:creationStack",
+      "data": [
+        "Kernel._Kernel_create (/private/var/folders/cs/276g25n13j750p5k_79h75t80000gp/T/tmpesovft0e/lib/program.js:1:61273)",
+        "Kernel.create (/private/var/folders/cs/276g25n13j750p5k_79h75t80000gp/T/tmpesovft0e/lib/program.js:1:52004)",
+        "KernelHost.processRequest (/private/var/folders/cs/276g25n13j750p5k_79h75t80000gp/T/tmpesovft0e/lib/program.js:1:212822)",
+        "KernelHost.run (/private/var/folders/cs/276g25n13j750p5k_79h75t80000gp/T/tmpesovft0e/lib/program.js:1:211877)",
+        "Immediate._onImmediate (/private/var/folders/cs/276g25n13j750p5k_79h75t80000gp/T/tmpesovft0e/lib/program.js:1:211921)",
+        "...node internals..."
+      ]
+    }
+  ],
+  "/OpsRunbookHarness/HarnessInstanceProfile": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "HarnessInstanceProfile"
+    },
+    {
+      "type": "aws:cdk:creationStack",
+      "data": [
+        "Kernel._Kernel_create (/private/var/folders/cs/276g25n13j750p5k_79h75t80000gp/T/tmpesovft0e/lib/program.js:1:61273)",
+        "Kernel.create (/private/var/folders/cs/276g25n13j750p5k_79h75t80000gp/T/tmpesovft0e/lib/program.js:1:52004)",
+        "KernelHost.processRequest (/private/var/folders/cs/276g25n13j750p5k_79h75t80000gp/T/tmpesovft0e/lib/program.js:1:212822)",
+        "KernelHost.run (/private/var/folders/cs/276g25n13j750p5k_79h75t80000gp/T/tmpesovft0e/lib/program.js:1:211877)",
+        "Immediate._onImmediate (/private/var/folders/cs/276g25n13j750p5k_79h75t80000gp/T/tmpesovft0e/lib/program.js:1:211921)",
+        "...node internals..."
+      ]
+    }
+  ],
+  "/OpsRunbookHarness/WebhookUrl": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "WebhookUrl"
+    },
+    {
+      "type": "aws:cdk:creationStack",
+      "data": [
+        "Kernel._Kernel_create (/private/var/folders/cs/276g25n13j750p5k_79h75t80000gp/T/tmpesovft0e/lib/program.js:1:61273)",
+        "Kernel.create (/private/var/folders/cs/276g25n13j750p5k_79h75t80000gp/T/tmpesovft0e/lib/program.js:1:52004)",
+        "KernelHost.processRequest (/private/var/folders/cs/276g25n13j750p5k_79h75t80000gp/T/tmpesovft0e/lib/program.js:1:212822)",
+        "KernelHost.run (/private/var/folders/cs/276g25n13j750p5k_79h75t80000gp/T/tmpesovft0e/lib/program.js:1:211877)",
+        "Immediate._onImmediate (/private/var/folders/cs/276g25n13j750p5k_79h75t80000gp/T/tmpesovft0e/lib/program.js:1:211921)",
+        "...node internals..."
+      ]
+    }
+  ],
+  "/OpsRunbookHarness/SnsTopicArn": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "SnsTopicArn"
+    },
+    {
+      "type": "aws:cdk:creationStack",
+      "data": [
+        "Kernel._Kernel_create (/private/var/folders/cs/276g25n13j750p5k_79h75t80000gp/T/tmpesovft0e/lib/program.js:1:61273)",
+        "Kernel.create (/private/var/folders/cs/276g25n13j750p5k_79h75t80000gp/T/tmpesovft0e/lib/program.js:1:52004)",
+        "KernelHost.processRequest (/private/var/folders/cs/276g25n13j750p5k_79h75t80000gp/T/tmpesovft0e/lib/program.js:1:212822)",
+        "KernelHost.run (/private/var/folders/cs/276g25n13j750p5k_79h75t80000gp/T/tmpesovft0e/lib/program.js:1:211877)",
+        "Immediate._onImmediate (/private/var/folders/cs/276g25n13j750p5k_79h75t80000gp/T/tmpesovft0e/lib/program.js:1:211921)",
+        "...node internals..."
+      ]
+    }
+  ],
+  "/OpsRunbookHarness/BootstrapVersion": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "BootstrapVersion"
+    },
+    {
+      "type": "aws:cdk:creationStack",
+      "data": [
+        "...App.synth in aws-cdk-lib...",
+        "/private/var/folders/cs/276g25n13j750p5k_79h75t80000gp/T/tmpesovft0e/lib/program.js:1:543 (/private/var/folders/cs/276g25n13j750p5k_79h75t80000gp/T/tmpesovft0e/lib/program.js:1:5434)"
+      ]
+    }
+  ],
+  "/OpsRunbookHarness/CheckBootstrapVersion": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "CheckBootstrapVersion"
+    },
+    {
+      "type": "aws:cdk:creationStack",
+      "data": [
+        "...App.synth in aws-cdk-lib...",
+        "/private/var/folders/cs/276g25n13j750p5k_79h75t80000gp/T/tmpesovft0e/lib/program.js:1:543 (/private/var/folders/cs/276g25n13j750p5k_79h75t80000gp/T/tmpesovft0e/lib/program.js:1:5434)"
+      ]
+    }
+  ],
+  "/OpsRunbookHarness/HarnessAlerts/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "HarnessAlertsEAEDF08E"
+    },
+    {
+      "type": "aws:cdk:creationStack",
+      "data": [
+        "...new Topic2 in aws-cdk-lib...",
+        "Kernel._Kernel_create (/private/var/folders/cs/276g25n13j750p5k_79h75t80000gp/T/tmpesovft0e/lib/program.js:1:61273)",
+        "Kernel.create (/private/var/folders/cs/276g25n13j750p5k_79h75t80000gp/T/tmpesovft0e/lib/program.js:1:52004)",
+        "KernelHost.processRequest (/private/var/folders/cs/276g25n13j750p5k_79h75t80000gp/T/tmpesovft0e/lib/program.js:1:212822)",
+        "KernelHost.run (/private/var/folders/cs/276g25n13j750p5k_79h75t80000gp/T/tmpesovft0e/lib/program.js:1:211877)",
+        "Immediate._onImmediate (/private/var/folders/cs/276g25n13j750p5k_79h75t80000gp/T/tmpesovft0e/lib/program.js:1:211921)",
+        "...node internals..."
+      ]
+    }
+  ],
+  "/OpsRunbookHarness/EC2StoppedRule/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "EC2StoppedRuleF7E6350D"
+    },
+    {
+      "type": "aws:cdk:creationStack",
+      "data": [
+        "...new Rule2 in aws-cdk-lib...",
+        "Kernel._Kernel_create (/private/var/folders/cs/276g25n13j750p5k_79h75t80000gp/T/tmpesovft0e/lib/program.js:1:61273)",
+        "Kernel.create (/private/var/folders/cs/276g25n13j750p5k_79h75t80000gp/T/tmpesovft0e/lib/program.js:1:52004)",
+        "KernelHost.processRequest (/private/var/folders/cs/276g25n13j750p5k_79h75t80000gp/T/tmpesovft0e/lib/program.js:1:212822)",
+        "KernelHost.run (/private/var/folders/cs/276g25n13j750p5k_79h75t80000gp/T/tmpesovft0e/lib/program.js:1:211877)",
+        "Immediate._onImmediate (/private/var/folders/cs/276g25n13j750p5k_79h75t80000gp/T/tmpesovft0e/lib/program.js:1:211921)",
+        "...node internals..."
+      ]
+    }
+  ],
+  "/OpsRunbookHarness/HarnessPolicy/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "HarnessPolicy66675FF9"
+    },
+    {
+      "type": "aws:cdk:creationStack",
+      "data": [
+        "...new ManagedPolicy2 in aws-cdk-lib...",
+        "Kernel._Kernel_create (/private/var/folders/cs/276g25n13j750p5k_79h75t80000gp/T/tmpesovft0e/lib/program.js:1:61273)",
+        "Kernel.create (/private/var/folders/cs/276g25n13j750p5k_79h75t80000gp/T/tmpesovft0e/lib/program.js:1:52004)",
+        "KernelHost.processRequest (/private/var/folders/cs/276g25n13j750p5k_79h75t80000gp/T/tmpesovft0e/lib/program.js:1:212822)",
+        "KernelHost.run (/private/var/folders/cs/276g25n13j750p5k_79h75t80000gp/T/tmpesovft0e/lib/program.js:1:211877)",
+        "Immediate._onImmediate (/private/var/folders/cs/276g25n13j750p5k_79h75t80000gp/T/tmpesovft0e/lib/program.js:1:211921)",
+        "...node internals..."
+      ]
+    }
+  ],
+  "/OpsRunbookHarness/HarnessRole/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "HarnessRoleB55BF37F"
+    },
+    {
+      "type": "aws:cdk:creationStack",
+      "data": [
+        "...new Role2 in aws-cdk-lib...",
+        "Kernel._Kernel_create (/private/var/folders/cs/276g25n13j750p5k_79h75t80000gp/T/tmpesovft0e/lib/program.js:1:61273)",
+        "Kernel.create (/private/var/folders/cs/276g25n13j750p5k_79h75t80000gp/T/tmpesovft0e/lib/program.js:1:52004)",
+        "KernelHost.processRequest (/private/var/folders/cs/276g25n13j750p5k_79h75t80000gp/T/tmpesovft0e/lib/program.js:1:212822)",
+        "KernelHost.run (/private/var/folders/cs/276g25n13j750p5k_79h75t80000gp/T/tmpesovft0e/lib/program.js:1:211877)",
+        "Immediate._onImmediate (/private/var/folders/cs/276g25n13j750p5k_79h75t80000gp/T/tmpesovft0e/lib/program.js:1:211921)",
+        "...node internals..."
+      ]
+    }
+  ],
+  "/OpsRunbookHarness/CDKMetadata/Default": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "CDKMetadata"
+    },
+    {
+      "type": "aws:cdk:creationStack",
+      "data": [
+        "...App.synth in aws-cdk-lib...",
+        "/private/var/folders/cs/276g25n13j750p5k_79h75t80000gp/T/tmpesovft0e/lib/program.js:1:543 (/private/var/folders/cs/276g25n13j750p5k_79h75t80000gp/T/tmpesovft0e/lib/program.js:1:5434)",
+        "Kernel._Kernel_ensureSync (/private/var/folders/cs/276g25n13j750p5k_79h75t80000gp/T/tmpesovft0e/lib/program.js:1:69889)",
+        "Kernel.invoke (/private/var/folders/cs/276g25n13j750p5k_79h75t80000gp/T/tmpesovft0e/lib/program.js:1:54294)"
+      ]
+    }
+  ],
+  "/OpsRunbookHarness/HarnessAlerts/https:----fired-festival-production.up.railway.app--webhook--ec2/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "HarnessAlertshttpsfiredfestivalproductionuprailwayappwebhookec235DEF454"
+    },
+    {
+      "type": "aws:cdk:creationStack",
+      "data": [
+        "...WrappedClass.addSubscription in aws-cdk-lib...",
+        "/private/var/folders/cs/276g25n13j750p5k_79h75t80000gp/T/tmpesovft0e/lib/program.js:1:543 (/private/var/folders/cs/276g25n13j750p5k_79h75t80000gp/T/tmpesovft0e/lib/program.js:1:5434)",
+        "Kernel._Kernel_ensureSync (/private/var/folders/cs/276g25n13j750p5k_79h75t80000gp/T/tmpesovft0e/lib/program.js:1:69889)",
+        "Kernel.invoke (/private/var/folders/cs/276g25n13j750p5k_79h75t80000gp/T/tmpesovft0e/lib/program.js:1:54294)",
+        "KernelHost.processRequest (/private/var/folders/cs/276g25n13j750p5k_79h75t80000gp/T/tmpesovft0e/lib/program.js:1:212822)",
+        "KernelHost.run (/private/var/folders/cs/276g25n13j750p5k_79h75t80000gp/T/tmpesovft0e/lib/program.js:1:211877)",
+        "Immediate._onImmediate (/private/var/folders/cs/276g25n13j750p5k_79h75t80000gp/T/tmpesovft0e/lib/program.js:1:211921)",
+        "...node internals..."
+      ]
+    }
+  ],
+  "/OpsRunbookHarness/HarnessAlerts/Policy/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "HarnessAlertsPolicy12670424"
+    },
+    {
+      "type": "aws:cdk:creationStack",
+      "data": [
+        "...aws-cdk-lib...",
+        "(no user code in 10 frames, use --stack-trace-limit to capture more)"
+      ]
+    }
+  ]
+}

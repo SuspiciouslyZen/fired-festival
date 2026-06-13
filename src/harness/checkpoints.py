@@ -32,11 +32,12 @@ class CheckpointManager:
         severity = alert_data.get("severity", "")
         valid_severities = ["low", "medium", "high", "critical"]
 
-        passed = service in KNOWN_SERVICES and severity.lower() in valid_severities
+        known_services = set(KNOWN_SERVICES) | set(self.guardrails.config.allowed_services)
+        passed = service in known_services and severity.lower() in valid_severities
         failure_reason = None
         if not passed:
             reasons = []
-            if service not in KNOWN_SERVICES:
+            if service not in known_services:
                 reasons.append(f"Unknown service: {service}")
             if severity.lower() not in valid_severities:
                 reasons.append(f"Invalid severity: {severity}")

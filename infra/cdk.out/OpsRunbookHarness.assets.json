@@ -1,0 +1,21 @@
+{
+  "version": "53.0.0",
+  "files": {
+    "5e986c9780fe28976f219d69a13c38eccebe86ad425793044f034983d4fda79b": {
+      "displayName": "OpsRunbookHarness Template",
+      "source": {
+        "path": "OpsRunbookHarness.template.json",
+        "packaging": "file"
+      },
+      "destinations": {
+        "current_account-us-east-2-4f9f9c26": {
+          "bucketName": "cdk-hnb659fds-assets-${AWS::AccountId}-us-east-2",
+          "objectKey": "5e986c9780fe28976f219d69a13c38eccebe86ad425793044f034983d4fda79b.json",
+          "region": "us-east-2",
+          "assumeRoleArn": "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/cdk-hnb659fds-file-publishing-role-${AWS::AccountId}-us-east-2"
+        }
+      }
+    }
+  },
+  "dockerImages": {}
+}

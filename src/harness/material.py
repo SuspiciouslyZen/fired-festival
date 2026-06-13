@@ -24,6 +24,38 @@ class MaterialHandler:
             raise ValueError(f"Invalid alert: {e}") from e
 
     @staticmethod
+    def normalize_ec2_event(event: dict) -> "Alert":
+        """
+        Normalize an EventBridge EC2 Instance State-change Notification into an Alert.
+        Looks up the instance Name tag via boto3; falls back to instance ID as service name.
+        """
+        detail = event.get("detail", {})
+        instance_id = detail.get("instance-id", "unknown")
+
+        service = instance_id
+        try:
+            import boto3
+            ec2 = boto3.client("ec2", region_name="us-east-2")
+            resp = ec2.describe_instances(InstanceIds=[instance_id])
+            reservations = resp.get("Reservations", [])
+            if reservations:
+                tags = {
+                    t["Key"]: t["Value"]
+                    for t in reservations[0]["Instances"][0].get("Tags", [])
+                }
+                service = tags.get("Name", instance_id)
+        except Exception:
+            pass
+
+        return Alert(
+            service=service,
+            severity="critical",
+            description=f"EC2 instance {instance_id} entered stopped state unexpectedly",
+            source="aws-eventbridge",
+            metadata=event,
+        )
+
+    @staticmethod
     def build_report(
         run_id: str,
         alert: Alert,

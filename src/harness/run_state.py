@@ -72,7 +72,7 @@ FAILED: dict[str, dict] = {
 
 STABLE: dict[str, dict] = {
     "web-api": {
-        "status": "healthy",
+        "status": "degraded",
         "cpu_percent": 11.4,
         "cpu_steal_percent": 0.3,
         "memory_percent": 42.1,

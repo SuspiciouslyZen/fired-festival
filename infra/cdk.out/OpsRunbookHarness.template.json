@@ -1,0 +1,240 @@
+{
+ "Resources": {
+  "HarnessAlertsEAEDF08E": {
+   "Type": "AWS::SNS::Topic",
+   "Properties": {
+    "DisplayName": "Ops Runbook Harness Alerts"
+   },
+   "Metadata": {
+    "aws:cdk:path": "OpsRunbookHarness/HarnessAlerts/Resource"
+   }
+  },
+  "HarnessAlertshttpsfiredfestivalproductionuprailwayappwebhookec235DEF454": {
+   "Type": "AWS::SNS::Subscription",
+   "Properties": {
+    "Endpoint": "https://fired-festival-production.up.railway.app/webhook/ec2",
+    "Protocol": "https",
+    "TopicArn": {
+     "Ref": "HarnessAlertsEAEDF08E"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "OpsRunbookHarness/HarnessAlerts/https:----fired-festival-production.up.railway.app--webhook--ec2/Resource"
+   }
+  },
+  "HarnessAlertsPolicy12670424": {
+   "Type": "AWS::SNS::TopicPolicy",
+   "Properties": {
+    "PolicyDocument": {
+     "Statement": [
+      {
+       "Action": "sns:Publish",
+       "Effect": "Allow",
+       "Principal": {
+        "Service": "events.amazonaws.com"
+       },
+       "Resource": {
+        "Ref": "HarnessAlertsEAEDF08E"
+       },
+       "Sid": "0"
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "Topics": [
+     {
+      "Ref": "HarnessAlertsEAEDF08E"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "OpsRunbookHarness/HarnessAlerts/Policy/Resource"
+   }
+  },
+  "EC2StoppedRuleF7E6350D": {
+   "Type": "AWS::Events::Rule",
+   "Properties": {
+    "Description": "Forward EC2 stopped-state events to the harness SNS topic",
+    "EventPattern": {
+     "detail": {
+      "state": [
+       "stopped"
+      ]
+     },
+     "detail-type": [
+      "EC2 Instance State-change Notification"
+     ],
+     "source": [
+      "aws.ec2"
+     ]
+    },
+    "Name": "harness-ec2-stopped",
+    "State": "ENABLED",
+    "Targets": [
+     {
+      "Arn": {
+       "Ref": "HarnessAlertsEAEDF08E"
+      },
+      "Id": "Target0"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "OpsRunbookHarness/EC2StoppedRule/Resource"
+   }
+  },
+  "HarnessPolicy66675FF9": {
+   "Type": "AWS::IAM::ManagedPolicy",
+   "Properties": {
+    "Description": "",
+    "ManagedPolicyName": "OpsRunbookHarnessPolicy",
+    "Path": "/",
+    "PolicyDocument": {
+     "Statement": [
+      {
+       "Action": "tag:GetResources",
+       "Effect": "Allow",
+       "Resource": "*"
+      },
+      {
+       "Action": [
+        "cloudwatch:GetMetricStatistics",
+        "cloudwatch:ListMetrics"
+       ],
+       "Effect": "Allow",
+       "Resource": "*"
+      },
+      {
+       "Action": [
+        "logs:FilterLogEvents",
+        "logs:DescribeLogGroups"
+       ],
+       "Effect": "Allow",
+       "Resource": "*"
+      },
+      {
+       "Action": [
+        "ec2:StopInstances",
+        "ec2:StartInstances",
+        "ec2:DescribeInstanceStatus",
+        "ec2:DescribeInstances"
+       ],
+       "Condition": {
+        "StringEquals": {
+         "aws:ResourceTag/Monitoring": "true"
+        }
+       },
+       "Effect": "Allow",
+       "Resource": "*"
+      },
+      {
+       "Action": [
+        "ec2:DescribeInstances",
+        "ec2:DescribeInstanceStatus"
+       ],
+       "Effect": "Allow",
+       "Resource": "*"
+      }
+     ],
+     "Version": "2012-10-17"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "OpsRunbookHarness/HarnessPolicy/Resource"
+   }
+  },
+  "HarnessRoleB55BF37F": {
+   "Type": "AWS::IAM::Role",
+   "Properties": {
+    "AssumeRolePolicyDocument": {
+     "Statement": [
+      {
+       "Action": "sts:AssumeRole",
+       "Effect": "Allow",
+       "Principal": {
+        "Service": "ec2.amazonaws.com"
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "ManagedPolicyArns": [
+     {
+      "Ref": "HarnessPolicy66675FF9"
+     }
+    ],
+    "RoleName": "OpsRunbookHarnessRole"
+   },
+   "Metadata": {
+    "aws:cdk:path": "OpsRunbookHarness/HarnessRole/Resource"
+   }
+  },
+  "HarnessInstanceProfile": {
+   "Type": "AWS::IAM::InstanceProfile",
+   "Properties": {
+    "InstanceProfileName": "OpsRunbookHarnessInstanceProfile",
+    "Roles": [
+     {
+      "Ref": "HarnessRoleB55BF37F"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "OpsRunbookHarness/HarnessInstanceProfile"
+   }
+  },
+  "CDKMetadata": {
+   "Type": "AWS::CDK::Metadata",
+   "Properties": {
+    "Analytics": "v2:deflate64:H4sIAAAAAAAA/1WMwQ6CMBBEv4V7WQ0GE8+ePBgJeDelFF2BLaGthjT9d6kQDafZebMzCSRpCtuIv3UsqiZusQRXGC4aNqGb06TBXVWPgh1rmo/ClloM2BtUFOjKf18y1aIYf43ZeiZfksy0l9tWhjCoZ8g7cGdO/C6rf3ENcrU0Fj2RNpyEzAZV4zTiA7xY01vjWTaah6LNDg6wj54aMR4sGewk5LN+AFzOfab1AAAA"
+   },
+   "Metadata": {
+    "aws:cdk:path": "OpsRunbookHarness/CDKMetadata/Default"
+   }
+  }
+ },
+ "Outputs": {
+  "WebhookUrl": {
+   "Value": "https://fired-festival-production.up.railway.app/webhook/ec2"
+  },
+  "SnsTopicArn": {
+   "Value": {
+    "Ref": "HarnessAlertsEAEDF08E"
+   }
+  }
+ },
+ "Parameters": {
+  "BootstrapVersion": {
+   "Type": "AWS::SSM::Parameter::Value<String>",
+   "Default": "/cdk-bootstrap/hnb659fds/version",
+   "Description": "Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]"
+  }
+ },
+ "Rules": {
+  "CheckBootstrapVersion": {
+   "Assertions": [
+    {
+     "Assert": {
+      "Fn::Not": [
+       {
+        "Fn::Contains": [
+         [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5"
+         ],
+         {
+          "Ref": "BootstrapVersion"
+         }
+        ]
+       }
+      ]
+     },
+     "AssertDescription": "CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI."
+    }
+   ]
+  }
+ }
+}

@@ -11,6 +11,8 @@ Endpoints:
 - POST /replay      — replay from a checkpoint
 - GET  /health      — health check
 """
+import asyncio
+import logging
 import os
 import httpx
 from contextlib import asynccontextmanager
@@ -18,6 +20,8 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
+
+logger = logging.getLogger(__name__)
 
 from src.harness.guardrails import GuardrailEngine
 from src.harness.loop import HarnessLoop
@@ -37,6 +41,16 @@ async def lifespan(app: FastAPI):
     _store = CheckpointStore()
     await _store.connect()
     _guardrails = GuardrailEngine.from_yaml("guardrails.yaml")
+
+    try:
+        from src.aws.discovery import list_monitored_services
+        discovered = await asyncio.to_thread(list_monitored_services)
+        if discovered:
+            _guardrails.add_allowed_services(discovered)
+            logger.info(f"AWS discovery: registered {len(discovered)} services: {discovered}")
+    except Exception as e:
+        logger.warning(f"AWS service discovery skipped: {e}")
+
     yield
     if _store:
         await _store.close()
@@ -54,7 +68,7 @@ if os.path.isdir(_static_dir):
     app.mount("/static", StaticFiles(directory=_static_dir), name="static")
 
 
-def _build_agent(agent_type: str, model: str | None = None):
+def _get_agent(agent_type: str, model: str | None = None):
     if agent_type == "ollama":
         from src.agents.ollama_agent import OllamaAgent
         return OllamaAgent(model=model or None)
@@ -99,6 +113,57 @@ async def root():
 @app.get("/health")
 async def health():
     return {"status": "ok", "service": "ops-runbook-harness"}
+
+
+@app.post("/webhook/ec2")
+async def webhook_ec2(event: dict):
+    """
+    Receive SNS notifications from EventBridge/CloudWatch and run the harness.
+
+    Handles three cases:
+    - SNS SubscriptionConfirmation: fetches the SubscribeURL to confirm
+    - SNS Notification: unwraps the Message field to get the EventBridge event
+    - Direct EventBridge JSON: used for manual testing
+    """
+    msg_type = event.get("Type")
+
+    # SNS subscription handshake — fetch the SubscribeURL to confirm
+    if msg_type == "SubscriptionConfirmation":
+        subscribe_url = event.get("SubscribeURL")
+        if subscribe_url:
+            async with httpx.AsyncClient() as client:
+                await client.get(subscribe_url)
+            logger.info("SNS subscription confirmed")
+        return {"status": "confirmed"}
+
+    # SNS notification — unwrap to get the inner EventBridge event
+    if msg_type == "Notification":
+        import json as _json
+        try:
+            ec2_event = _json.loads(event.get("Message", "{}"))
+        except Exception:
+            raise HTTPException(status_code=422, detail="Could not parse SNS Message as JSON")
+    else:
+        ec2_event = event
+
+    try:
+        alert = await asyncio.to_thread(MaterialHandler.normalize_ec2_event, ec2_event)
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+
+    agent_type = os.environ.get("AGENT_TYPE", "openrouter")
+    try:
+        agent = _get_agent(agent_type)
+    except (ValueError, Exception) as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    try:
+        registry = create_registry(_guardrails, service=alert.service)
+        loop = HarnessLoop(agent=agent, guardrails=_guardrails, store=_store, registry=registry)
+        result = await loop.run(alert)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Harness execution failed: {e}")
 
 
 @app.get("/agents")
@@ -189,7 +254,7 @@ async def run_harness(request: RunRequest):
         raise HTTPException(status_code=422, detail=str(e))
 
     try:
-        agent = _build_agent(request.agent_type, request.model)
+        agent = _get_agent(request.agent_type, request.model)
     except (ValueError, Exception) as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -253,7 +318,7 @@ async def replay_run(request: ReplayRequest):
     except ValueError as e:
         raise HTTPException(status_code=422, detail=str(e))
 
-    agent = _build_agent(request.agent_type)
+    agent = _get_agent(request.agent_type)
     registry = create_registry(_guardrails)
     loop = HarnessLoop(agent=agent, guardrails=_guardrails, store=_store, registry=registry)
     result = await loop.run(alert, replay_from=stage, replay_run_id=request.run_id)

@@ -5,7 +5,7 @@ from src.tools.registry import ToolRegistry
 from src.tools import restart_service, read_logs, kill_query, flush_dns, check_status
 
 
-def create_registry(guardrails: GuardrailEngine, service: str = "unknown", initial_state: str = "failed") -> ToolRegistry:
+def create_registry(guardrails: GuardrailEngine, service: str = "unknown", initial_state: str = "stable") -> ToolRegistry:
     state = RunState(service=service, initial=initial_state)
     registry = ToolRegistry(guardrails)
     registry.register(check_status.make_definition(state))

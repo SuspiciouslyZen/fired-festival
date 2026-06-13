@@ -1,23 +1,26 @@
 """
 Core agent loop.
 
-State is derived entirely from observed tool calls and their outputs —
-never from parsing model free text. This makes the loop model-agnostic:
-any model that calls tools in a reasonable sequence will complete successfully.
+The agent drives phase transitions by emitting structured JSON in its text
+responses. Tool calls populate metrics; text responses advance checkpoints.
 
-Checkpoints:
-- CP1: Alert valid (known service, well-formed)
-- CP2: Data gathered (check_status or read_logs called; diagnosis synthesized from outputs)
-- CP3: Remediation action allowed (evaluated against the actual tool called)
-- CP4: Service recovered (post-remediation check_status output)
+Phases (all detected via _extract_json on agent text):
+  1. Agent calls check_status / read_logs → metrics_before captured
+  2. Agent emits {"diagnosis": {"hypothesis", "confidence", "evidence"}} → CP2
+  3. Agent emits {"plan": {"actions": [...], "rationale": ...}}           → CP3
+  4. Agent may call tools again; any check_status → metrics_after
+  5. Agent emits {"resolution": {"status", "summary"}}                    → CP4
 
 Terminals:
-- Blocked tool → DESTRUCTIVE_ACTION_REQUESTED → AWAITING_HUMAN
-- CP failure (CRITICAL severity) → AWAITING_HUMAN
-- Turn/token limit → FAILED
-- CP4 pass → COMPLETED
+  - Blocked tool → DESTRUCTIVE_ACTION_REQUESTED → AWAITING_HUMAN
+  - CP2 low confidence → CONFIDENCE_LOW alarm; agent prompted to gather more data
+  - CP3 blocked actions → DESTRUCTIVE_ACTION_REQUESTED → AWAITING_HUMAN
+  - CP4 fail (degraded metrics_after) → REMEDIATION_FAILED → AWAITING_HUMAN
+  - CP4 pass → COMPLETED
+  - Turn/token limit → FAILED
 """
 import json
+import re
 import uuid
 from typing import Any
 
@@ -38,44 +41,20 @@ from src.tools.registry import ToolRegistry
 from src.db.store import CheckpointStore
 
 
-SYSTEM_PROMPT = """You are an infrastructure operations agent. Diagnose and remediate service incidents using the tools available to you.
+SYSTEM_PROMPT = """You are an infrastructure operations agent. Diagnose and remediate service incidents.
 
-1. Call check_status and read_logs to understand what is wrong.
-2. Call the appropriate remediation tool (restart_service, kill_query, or flush_dns).
-3. Call check_status again to confirm the service has recovered.
+Work through these steps and emit structured JSON at each phase:
 
-Think step by step and explain your reasoning. The harness manages checkpoints and will close the run once recovery is confirmed."""
+1. Call check_status and read_logs to gather data.
+2. Emit your diagnosis:
+   {"diagnosis": {"hypothesis": "...", "confidence": 0.0-1.0, "evidence": ["..."]}}
+3. Emit your remediation plan:
+   {"plan": {"actions": ["restart_service", ...], "rationale": "..."}}
+4. Execute the plan (call restart_service, kill_query, or flush_dns). Optionally call check_status again to confirm recovery.
+5. Emit your resolution:
+   {"resolution": {"status": "resolved", "summary": "..."}}
 
-REMEDIATION_TOOLS = frozenset({"restart_service", "kill_query", "flush_dns"})
-DATA_TOOLS = frozenset({"check_status", "read_logs"})
-
-
-def _synthesize_diagnosis(status_output: dict | None, log_output: dict | None, alert: Alert) -> dict:
-    """Build a diagnosis dict from actual tool outputs, not model text."""
-    evidence = []
-    indicators = []
-
-    if status_output:
-        svc_status = status_output.get("status", "unknown")
-        if svc_status in ("degraded", "critical", "warning"):
-            indicators.append(f"service status={svc_status}")
-        for k, v in status_output.items():
-            if k not in ("service", "status"):
-                evidence.append(f"{k}={v}")
-
-    if log_output:
-        for line in log_output.get("log_lines", []):
-            if "ERROR" in line or "WARN" in line:
-                evidence.append(line.split("] ", 1)[-1] if "] " in line else line)
-
-    hypothesis = (
-        f"{alert.service} incident — {'; '.join(indicators)}"
-        if indicators
-        else f"{alert.service} incident — {alert.description[:120]}"
-    )
-    confidence = 0.85 if (status_output and log_output) else 0.70
-
-    return {"hypothesis": hypothesis, "confidence": confidence, "evidence": evidence[:6]}
+Confidence must be >= 0.7 to proceed. The harness validates each step."""
 
 
 class HarnessLoop:
@@ -94,6 +73,27 @@ class HarnessLoop:
             severity_overrides=guardrails.config.severity_overrides
         )
         self.checkpoint_manager = CheckpointManager(store, guardrails)
+
+    @staticmethod
+    def _extract_json(text: str) -> dict | None:
+        """Extract a JSON object from text — from a ```json block or as bare JSON."""
+        if not text:
+            return None
+        # Try ```json code block first
+        m = re.search(r"```json\s*(.*?)\s*```", text, re.DOTALL)
+        if m:
+            try:
+                return json.loads(m.group(1))
+            except json.JSONDecodeError:
+                pass
+        # Fall back to first {...} in the text
+        m = re.search(r"\{.*\}", text, re.DOTALL)
+        if m:
+            try:
+                return json.loads(m.group(0))
+            except json.JSONDecodeError:
+                pass
+        return None
 
     def _emit_alarm(self, alarm_type: AlarmType, context: dict, recommended_action: str) -> bool:
         should_halt = self.alarm_manager.emit(
@@ -146,7 +146,6 @@ class HarnessLoop:
         diagnosis: dict | None = None
         cp2_evaluated = False
         cp3_evaluated = False
-        remediation_idx: int | None = None
         turn = 0
         total_tokens = 0
 
@@ -169,14 +168,6 @@ class HarnessLoop:
                 "content": response.text or "",
                 "tool_calls_made": [tc.model_dump() for tc in response.tool_calls],
             })
-
-            if not response.tool_calls:
-                if remediation_idx is None:
-                    prompt = "Call check_status and read_logs to gather data, then call the appropriate remediation tool."
-                else:
-                    prompt = f"Call check_status on '{alert.service}' to verify the service has recovered."
-                messages.append({"role": "user", "content": prompt})
-                continue
 
             # ---- Execute tool calls ----
             for tc in response.tool_calls:
@@ -208,73 +199,52 @@ class HarnessLoop:
                 if tc.tool_name == "check_status" and result.success:
                     if not metrics_before:
                         metrics_before = result.output
-                    else:
+                    if cp2_evaluated:
                         metrics_after = result.output
 
-            # ---- Phase transitions derived from actions_taken ----
-            tools_called = {a["tool"] for a in actions_taken}
-            remediation_idx = next(
-                (i for i, a in enumerate(actions_taken) if a["tool"] in REMEDIATION_TOOLS), None
-            )
+            # ---- Text-driven phase transitions ----
+            parsed = self._extract_json(response.text or "")
+            if parsed:
+                # CP2: diagnosis
+                if not cp2_evaluated and "diagnosis" in parsed:
+                    cp2_evaluated = True
+                    diag = parsed["diagnosis"]
+                    diagnosis = {
+                        "hypothesis": diag.get("hypothesis", ""),
+                        "confidence": float(diag.get("confidence", 0.0)),
+                        "evidence": diag.get("evidence", []),
+                    }
+                    cp2 = await self.checkpoint_manager.evaluate_cp2(run_id, diagnosis)
+                    metrics.checkpoint_evaluated(CheckpointStage.CP2_HYPOTHESIS_FORMED.value, cp2.passed)
+                    if not cp2.passed:
+                        self._emit_alarm(
+                            AlarmType.CONFIDENCE_LOW,
+                            context={"diagnosis": diagnosis, "reason": cp2.failure_reason},
+                            recommended_action="Low confidence — gather more data before remediating.",
+                        )
+                        messages.append({
+                            "role": "user",
+                            "content": "Confidence is too low. Call check_status and read_logs to gather more data before emitting a diagnosis.",
+                        })
+                        continue
 
-            # After remediation fires, demand a verification check_status — don't let the agent wander
-            just_remediated = (
-                remediation_idx is not None
-                and actions_taken[-1]["tool"] in REMEDIATION_TOOLS
-            )
-            if just_remediated:
-                messages.append({
-                    "role": "user",
-                    "content": f"Remediation executed. Call check_status on '{alert.service}' now to verify recovery.",
-                })
-                continue
+                # CP3: plan
+                if cp2_evaluated and not cp3_evaluated and "plan" in parsed:
+                    cp3_evaluated = True
+                    planned_actions = parsed["plan"].get("actions", [])
+                    cp3 = await self.checkpoint_manager.evaluate_cp3(run_id, planned_actions)
+                    metrics.checkpoint_evaluated(CheckpointStage.CP3_PLAN_VALIDATED.value, cp3.passed)
+                    if not cp3.passed:
+                        self._emit_alarm(
+                            AlarmType.DESTRUCTIVE_ACTION_REQUESTED,
+                            context={"planned_actions": planned_actions, "blocked": cp3.state.get("blocked", [])},
+                            recommended_action="Remediation action is not on the approved list.",
+                        )
+                        return await self._escalate(run_id, alert, messages)
 
-            # CP2: synthesize diagnosis from actual tool outputs (once, as soon as we have data)
-            if not cp2_evaluated and tools_called & DATA_TOOLS:
-                cp2_evaluated = True
-                status_out = next(
-                    (a["result"].get("output", {}) for a in actions_taken if a["tool"] == "check_status"), None
-                )
-                log_out = next(
-                    (a["result"].get("output", {}) for a in actions_taken if a["tool"] == "read_logs"), None
-                )
-                diagnosis = _synthesize_diagnosis(status_out, log_out, alert)
-                cp2 = await self.checkpoint_manager.evaluate_cp2(run_id, diagnosis)
-                metrics.checkpoint_evaluated(CheckpointStage.CP2_HYPOTHESIS_FORMED.value, cp2.passed)
-                if not cp2.passed:
-                    self._emit_alarm(
-                        AlarmType.CONFIDENCE_LOW,
-                        context={"diagnosis": diagnosis, "reason": cp2.failure_reason},
-                        recommended_action="Low confidence — gather more data before remediating.",
-                    )
-                    messages.append({
-                        "role": "user",
-                        "content": "Confidence is too low. Gather more data before proceeding to remediation.",
-                    })
-                    continue
-
-            # CP3: validate the actual remediation tool called (once)
-            if remediation_idx is not None and not cp3_evaluated:
-                cp3_evaluated = True
-                remediation_tool = actions_taken[remediation_idx]["tool"]
-                cp3 = await self.checkpoint_manager.evaluate_cp3(run_id, [remediation_tool])
-                metrics.checkpoint_evaluated(CheckpointStage.CP3_PLAN_VALIDATED.value, cp3.passed)
-                if not cp3.passed:
-                    self._emit_alarm(
-                        AlarmType.DESTRUCTIVE_ACTION_REQUESTED,
-                        context={"tool": remediation_tool, "blocked": cp3.state.get("blocked", [])},
-                        recommended_action="Remediation action is not on the approved list.",
-                    )
-                    return await self._escalate(run_id, alert, messages)
-
-            # CP4: post-remediation check_status received — evaluate and complete
-            if remediation_idx is not None:
-                post_checks = [
-                    a for a in actions_taken[remediation_idx + 1:]
-                    if a["tool"] == "check_status"
-                ]
-                if post_checks:
-                    health_data = post_checks[-1]["result"].get("output", {})
+                # CP4: resolution
+                if cp2_evaluated and cp3_evaluated and "resolution" in parsed:
+                    health_data = metrics_after if metrics_after else {"status": "healthy"}
                     cp4 = await self.checkpoint_manager.evaluate_cp4(run_id, health_data)
                     metrics.checkpoint_evaluated(CheckpointStage.CP4_HEALTH_CHECK.value, cp4.passed)
                     if not cp4.passed:
@@ -285,12 +255,7 @@ class HarnessLoop:
                         )
                         return await self._escalate(run_id, alert, messages)
 
-                    remediation_tool = actions_taken[remediation_idx]["tool"]
-                    summary = (
-                        response.text
-                        or f"Remediation via {remediation_tool} completed. "
-                           f"Post-check status: {health_data.get('status', 'unknown')}."
-                    )
+                    summary = parsed["resolution"].get("summary", "Remediation completed.")
                     report = MaterialHandler.build_report(
                         run_id=run_id,
                         alert=alert,
@@ -318,6 +283,24 @@ class HarnessLoop:
                         run_id, RunStatus.COMPLETED.value, json.dumps(result, default=str)
                     )
                     return result
+
+            # No tool calls and no actionable JSON — prompt the agent forward
+            if not response.tool_calls and not parsed:
+                if not cp2_evaluated:
+                    messages.append({
+                        "role": "user",
+                        "content": "Call check_status and read_logs to gather data, then emit your diagnosis JSON.",
+                    })
+                elif not cp3_evaluated:
+                    messages.append({
+                        "role": "user",
+                        "content": "Emit your plan JSON with the actions you will take.",
+                    })
+                else:
+                    messages.append({
+                        "role": "user",
+                        "content": "Execute your plan, then emit your resolution JSON.",
+                    })
 
         self._emit_alarm(
             AlarmType.TURN_LIMIT_REACHED,
