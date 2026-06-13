@@ -32,20 +32,12 @@ class MaterialHandler:
         detail = event.get("detail", {})
         instance_id = detail.get("instance-id", "unknown")
 
-        service = instance_id
+        # Use the startup discovery map first (no extra boto3 call needed)
         try:
-            import boto3
-            ec2 = boto3.client("ec2", region_name="us-east-2")
-            resp = ec2.describe_instances(InstanceIds=[instance_id])
-            reservations = resp.get("Reservations", [])
-            if reservations:
-                tags = {
-                    t["Key"]: t["Value"]
-                    for t in reservations[0]["Instances"][0].get("Tags", [])
-                }
-                service = tags.get("Name", instance_id)
+            from src.aws.discovery import get_service_name_for_instance
+            service = get_service_name_for_instance(instance_id) or instance_id
         except Exception:
-            pass
+            service = instance_id
 
         return Alert(
             service=service,

@@ -115,6 +115,16 @@ async def health():
     return {"status": "ok", "service": "ops-runbook-harness"}
 
 
+@app.get("/debug/discovery")
+async def debug_discovery():
+    from src.aws.discovery import get_service_instance_map, list_monitored_services
+    cached = get_service_instance_map()
+    if not cached:
+        fresh = await asyncio.to_thread(list_monitored_services)
+        return {"cached": cached, "fresh_attempt": fresh, "allowed_services": _guardrails.config.allowed_services if _guardrails else []}
+    return {"cached": cached, "allowed_services": _guardrails.config.allowed_services if _guardrails else []}
+
+
 @app.post("/webhook/ec2")
 async def webhook_ec2(event: dict):
     """

@@ -47,3 +47,11 @@ def list_monitored_services() -> list[str]:
 def get_service_instance_map() -> dict[str, str]:
     """Return the cached service_name -> instance_id map from the last discovery run."""
     return _discovery_map.copy()
+
+
+def get_service_name_for_instance(instance_id: str) -> str | None:
+    """Reverse lookup: instance_id -> service_name from the cached discovery map."""
+    for name, iid in _discovery_map.items():
+        if iid == instance_id:
+            return name
+    return None
